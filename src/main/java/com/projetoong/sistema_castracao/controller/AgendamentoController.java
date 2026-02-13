@@ -11,7 +11,7 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/admin/agendamentos")
-@CrossOrigin(origins = "*")
+@CrossOrigin(origins = "http://localhost:5173")
 public class AgendamentoController {
 
     @Autowired
@@ -19,30 +19,30 @@ public class AgendamentoController {
 
     @PostMapping
     public ResponseEntity<Agendamento> agendar(@RequestBody Map<String, String> payload) {
+        // Agora pegamos o clinicaId do payload vindo do React
         Agendamento novo = agendamentoService.criarNovoAgendamento(
                 Long.parseLong(payload.get("cadastroId")),
                 payload.get("dataHora"),
-                payload.get("local")
+                Long.parseLong(payload.get("clinicaId")) // MUDANÇA AQUI: De String para Long
         );
         return ResponseEntity.ok(novo);
     }
+
     @PutMapping("/reagendar")
     public ResponseEntity<Agendamento> reagendar(@RequestBody Map<String, String> payload) {
-        // Recebe o ID do agendamento, não o do cadastro, pois a linha na tabela já existe
         Long agendamentoId = Long.parseLong(payload.get("agendamentoId"));
         String novaDataHora = payload.get("dataHora");
-        String novoLocal = payload.get("local");
+        // Se no reagendamento você também permitir trocar a clínica:
+        Long novaClinicaId = Long.parseLong(payload.get("clinicaId"));
 
-        Agendamento atualizado = agendamentoService.reagendar(agendamentoId, novaDataHora, novoLocal);
+        // Ajuste o seu método reagendar no Service para aceitar o Long novaClinicaId também
+        Agendamento atualizado = agendamentoService.reagendar(agendamentoId, novaDataHora, novaClinicaId);
         return ResponseEntity.ok(atualizado);
     }
+
     @GetMapping("/pendentes")
     public ResponseEntity<List<Agendamento>> listarPendentes() {
-        // O Controller pede para o Service e entrega para o React
         List<Agendamento> lista = agendamentoService.listarAgendamentosPendentes();
         return ResponseEntity.ok(lista);
     }
-    // No seu AgendamentoController.java
-
-
 }

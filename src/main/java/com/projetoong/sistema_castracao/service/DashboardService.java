@@ -1,28 +1,61 @@
 package com.projetoong.sistema_castracao.service;
 
+import com.projetoong.sistema_castracao.dto.DashboardSummaryDTO;
+import com.projetoong.sistema_castracao.dto.PerformanceClinicaDTO;
 import com.projetoong.sistema_castracao.repository.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import java.util.HashMap;
-import java.util.Map;
+
+import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 public class DashboardService {
     @Autowired private PetRepository petRepository;
     @Autowired private TutorRepository tutorRepository;
     @Autowired private PagamentoRepository pagamentoRepository;
+    @Autowired private AgendamentoRepository agendamentoRepository;
+    // Injetamos o repositório que tem o statusProcesso
+    @Autowired private CadastroRepository cadastroRepository;
 
-    public Map<String, Object> getResumoCompleto() {
-        Map<String, Object> data = new HashMap<>();
-        data.put("totalPets", petRepository.count());
-        data.put("tutoresAtivos", tutorRepository.count());
-        data.put("arrecadacaoTotal", pagamentoRepository.sumAprovados());
-        data.put("filaEspera", petRepository.countByStatusFila());
+    public DashboardSummaryDTO getResumoCompleto() {
+        // 1. Buscamos os dados dos Cards (Geral)
+        long totalPets = petRepository.count();
+        long tutoresAtivos = tutorRepository.count();
+        double arrecadacaoTotal = pagamentoRepository.sumAprovados() != null ? pagamentoRepository.sumAprovados() : 0.0;
 
-        // Dados para os Gráficos (Essencial para a Dona da ONG)
-        data.put("distribuicaoEspecies", petRepository.findEspeciesCount());
-        data.put("fluxoMensal", pagamentoRepository.findFluxoMensal());
+        // 2. BUSCA DOS STATUS REAIS NA TABELA DE CADASTROS (O pulo do gato)
+        long aguardandoPgto = cadastroRepository.countByStatusProcesso("AGUARDANDO_PAGAMENTO");
+        long naFila = cadastroRepository.countByStatusProcesso("NA_FILA");
+        long agendados = cadastroRepository.countByStatusProcesso("AGENDADO");
+        long concluidos = cadastroRepository.countByStatusProcesso("CONCLUIDO");
 
-        return data;
+        // 3. Listas para os Gráficos
+        var distribuicaoEspecies = petRepository.findEspeciesCount();
+        var fluxoFinanceiro = pagamentoRepository.findFluxoFinanceiroMensal();
+
+        // Mapeamento da Performance das Clínicas
+        List<Object[]> resultadosBrutos = agendamentoRepository.findPerformanceClinicasRaw();
+        List<PerformanceClinicaDTO> performanceClinicas = resultadosBrutos.stream().map(coluna -> new PerformanceClinicaDTO(
+                ((Number) coluna[0]).longValue(),
+                (String) coluna[1],
+                (String) coluna[2],
+                ((Number) coluna[3]).longValue(),
+                ((Number) coluna[4]).longValue()
+        )).collect(Collectors.toList());
+
+        // 4. Retornamos o Record com os novos campos
+        return new DashboardSummaryDTO(
+                totalPets,
+                tutoresAtivos,
+                arrecadacaoTotal,
+                aguardandoPgto, // Novo campo
+                naFila,         // Substitui o antigo filaEspera
+                agendados,      // Status AGENDADO da tabela cadastros
+                concluidos,     // Novo campo
+                fluxoFinanceiro,
+                performanceClinicas,
+                distribuicaoEspecies
+        );
     }
 }

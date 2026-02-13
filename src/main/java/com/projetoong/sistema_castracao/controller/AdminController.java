@@ -2,6 +2,7 @@ package com.projetoong.sistema_castracao.controller;
 
 import com.cloudinary.Cloudinary;
 import com.cloudinary.utils.ObjectUtils;
+import com.projetoong.sistema_castracao.dto.DashboardSummaryDTO;
 import com.projetoong.sistema_castracao.model.CadastroCastracao;
 import com.projetoong.sistema_castracao.model.Pagamento;
 import com.projetoong.sistema_castracao.model.Pet;
@@ -23,7 +24,7 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/admin")
-@CrossOrigin(origins = "*")
+@CrossOrigin(origins = "http://localhost:5173")
 public class AdminController {
 
     @Autowired
@@ -97,9 +98,11 @@ public class AdminController {
         return alarmeService.gerarRelatorioAlarmes();
     }
 
+    // No seu AdminController.java
+
     @GetMapping("/dashboard-summary")
-    public ResponseEntity<Map<String, Object>> getSummary() {
-        // O Service resolve a lógica, o Controller só entrega
+    public ResponseEntity<DashboardSummaryDTO> getSummary() {
+        // Agora o retorno é DashboardSummaryDTO, não mais Map
         return ResponseEntity.ok(dashboardService.getResumoCompleto());
     }
 

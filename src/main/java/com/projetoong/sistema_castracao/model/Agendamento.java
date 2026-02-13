@@ -2,7 +2,6 @@ package com.projetoong.sistema_castracao.model;
 
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
-import java.util.UUID;
 
 @Entity
 @Table(name = "agendamentos")
@@ -12,21 +11,34 @@ public class Agendamento {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    // Aqui está o segredo: O agendamento conhece o cadastro todo (Pet + Tutor)
     @OneToOne
     @JoinColumn(name = "cadastro_id", nullable = false)
     private CadastroCastracao cadastro;
 
+    // --- O QUE FALTAVA: Relacionamento com a Clínica ---
+    @ManyToOne
+    @JoinColumn(name = "clinica_id")
+    private Clinica clinica;
+
     private LocalDateTime dataHora;
-    private String local;
-    private String codigoHash; // O código para o PDF/E-mail
+    private String local; // Mantemos para o endereço por extenso
+    private String codigoHash;
 
     private boolean realizado = false;
     private LocalDateTime dataRegistro = LocalDateTime.now();
 
     public Agendamento() {}
 
-    // Getters e Setters...
+    // --- NOVOS GETTERS E SETTERS DA CLÍNICA ---
+    public Clinica getClinica() {
+        return clinica;
+    }
+
+    public void setClinica(Clinica clinica) {
+        this.clinica = clinica;
+    }
+
+    // --- GETTERS E SETTERS QUE VOCÊ JÁ TINHA ---
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
     public CadastroCastracao getCadastro() { return cadastro; }

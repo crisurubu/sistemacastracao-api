@@ -96,6 +96,11 @@ public class CadastroService {
 
         System.out.println("✅ Cadastro Finalizado com Cloudinary: " + pet.getNomeAnimal() + " | Bairro: " + tutor.getBairro());
     }
+    // CadastroService.java
+    public List<CadastroCastracao> buscarHistoricoPorTutor(Long tutorId) {
+        // Aqui o Service usa o Repository para buscar no BD
+        return cadastroRepository.findByTutorId(tutorId);
+    }
 
     // Outros métodos permanecem iguais...
     public List<Pet> buscarPetsPorCpf(String cpf) { return petRepository.findByTutorCpf(cpf); }

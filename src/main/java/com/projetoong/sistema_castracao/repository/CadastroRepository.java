@@ -19,6 +19,8 @@ public interface CadastroRepository extends JpaRepository<CadastroCastracao, Lon
     // 3. Histórico de Vida: Puxa todos os registros de um pet específico
     // Usamos 'petId' porque na Model CadastroCastracao o campo se chama 'pet'
     List<CadastroCastracao> findByPetId(Long petId);
+    // Adicione este aqui para aceitar o ID que vem do Front-end
+    List<CadastroCastracao> findByTutorId(Long tutorId);
 
     // 4. Busca por CPF (Puxando o histórico de vida completo do tutor)
     @Query("SELECT c FROM CadastroCastracao c WHERE c.tutor.cpf = :cpf")

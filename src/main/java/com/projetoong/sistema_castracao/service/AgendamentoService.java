@@ -2,8 +2,10 @@ package com.projetoong.sistema_castracao.service;
 
 import com.projetoong.sistema_castracao.model.Agendamento;
 import com.projetoong.sistema_castracao.model.CadastroCastracao;
+import com.projetoong.sistema_castracao.model.Clinica;
 import com.projetoong.sistema_castracao.repository.AgendamentoRepository;
 import com.projetoong.sistema_castracao.repository.CadastroCastracaoRepository;
+import com.projetoong.sistema_castracao.repository.ClinicaRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,66 +24,106 @@ public class AgendamentoService {
     private CadastroCastracaoRepository cadastroRepository;
 
     @Autowired
-    private EmailService emailService; // Injeção necessária para o disparo automático
+    private ClinicaRepository clinicaRepository;
 
+    @Autowired
+    private ClinicaService clinicaService;
+
+    @Autowired
+    private EmailService emailService;
+
+    // 1. Listar agenda da clínica
+    public List<Agendamento> listarAgendaDaClinica(Clinica clinica) {
+        return agendamentoRepository.findByClinicaAndRealizadoFalseOrderByDataHoraAsc(clinica);
+    }
+
+    // 2. Concluir o procedimento (Dá mérito à clínica)
     @Transactional
-    public Agendamento criarNovoAgendamento(Long cadastroId, String dataHora, String local) {
-        // 1. Busca o cadastro pai (Puxa Pet e Tutor automaticamente)
+    public void concluirProcedimento(Long agendamentoId) {
+        Agendamento agendamento = agendamentoRepository.findById(agendamentoId)
+                .orElseThrow(() -> new RuntimeException("Agendamento não encontrado"));
+
+        if (agendamento.isRealizado()) {
+            throw new RuntimeException("Este procedimento já foi marcado como realizado.");
+        }
+
+        if (agendamento.getClinica() == null) {
+            throw new RuntimeException("Este agendamento não possui uma clínica vinculada.");
+        }
+
+        agendamento.setRealizado(true);
+        agendamentoRepository.save(agendamento);
+
+        CadastroCastracao cadastro = agendamento.getCadastro();
+        cadastro.setStatusProcesso("CONCLUIDO");
+        cadastroRepository.save(cadastro);
+
+        clinicaService.registrarCastracaoConcluida(agendamento.getClinica().getId());
+    }
+
+    // 3. Criar agendamento (Vincula a clínica pelo ID)
+    @Transactional
+    public Agendamento criarNovoAgendamento(Long cadastroId, String dataHora, Long clinicaId) {
         CadastroCastracao cadastro = cadastroRepository.findById(cadastroId)
                 .orElseThrow(() -> new RuntimeException("Cadastro não encontrado"));
 
-        // 2. Cria a nova entidade de agendamento e popula os dados logísticos
+        Clinica clinica = clinicaRepository.findById(clinicaId)
+                .orElseThrow(() -> new RuntimeException("Clínica não encontrada"));
+
         Agendamento agendamento = new Agendamento();
         agendamento.setCadastro(cadastro);
         agendamento.setDataHora(LocalDateTime.parse(dataHora));
-        agendamento.setLocal(local);
-
-        // 3. Gera o código único (Hash) para segurança e validação no PDF
+        agendamento.setClinica(clinica);
+        agendamento.setLocal(clinica.getNome());
         agendamento.setCodigoHash(UUID.randomUUID().toString().substring(0, 8).toUpperCase());
 
-        // 4. Atualiza o status do cadastro pai para retirá-lo da fila de espera
         cadastro.setStatusProcesso("AGENDADO");
         cadastroRepository.save(cadastro);
 
-        // 5. Persiste na tabela de agendados
         Agendamento salvo = agendamentoRepository.save(agendamento);
 
-        // 6. DISPARO AUTOMÁTICO: Envia e-mail com Data, Hora, Local e Hash
         try {
             emailService.enviarEmailAgendamento(salvo);
         } catch (Exception e) {
-            // Logamos o erro mas não travamos a transação do banco
             System.err.println("Erro ao enviar e-mail: " + e.getMessage());
         }
 
         return salvo;
     }
+
+    // 4. Reagendar (Agora dentro da classe corretamente)
     @Transactional
-    public Agendamento reagendar(Long agendamentoId, String novaDataHora, String novoLocal) {
+    public Agendamento reagendar(Long agendamentoId, String novaDataHora, Long novaClinicaId) {
         Agendamento agendamento = agendamentoRepository.findById(agendamentoId)
                 .orElseThrow(() -> new RuntimeException("Agendamento não encontrado"));
 
-        // Atualiza os dados
-        agendamento.setDataHora(LocalDateTime.parse(novaDataHora));
-        agendamento.setLocal(novoLocal);
+        Clinica novaClinica = clinicaRepository.findById(novaClinicaId)
+                .orElseThrow(() -> new RuntimeException("Clínica não encontrada"));
 
-        // IMPORTANTE: Gera um NOVO Hash para o novo documento
+        agendamento.setDataHora(LocalDateTime.parse(novaDataHora));
+        agendamento.setClinica(novaClinica);
+        agendamento.setLocal(novaClinica.getNome());
         agendamento.setCodigoHash(UUID.randomUUID().toString().substring(0, 8).toUpperCase());
 
         Agendamento atualizado = agendamentoRepository.save(agendamento);
 
-        // Dispara o e-mail de RETIFICAÇÃO
-        emailService.enviarEmailAgendamento(atualizado);
+        try {
+            emailService.enviarEmailAgendamento(atualizado);
+        } catch (Exception e) {
+            System.err.println("Erro ao enviar e-mail: " + e.getMessage());
+        }
 
         return atualizado;
     }
+
+    // 5. Listar todos os pendentes
     public List<Agendamento> listarAgendamentosPendentes() {
-        // Aqui o Service usa o Repository para buscar os dados
         return agendamentoRepository.findByRealizadoFalseOrderByDataHoraAsc();
     }
-    // No seu AgendamentoService.java
+    // --- ADICIONE ESTE MÉTODO QUE ESTÁ FALTANDO ---
     public Agendamento buscarPorHash(String hash) {
         return agendamentoRepository.findByCodigoHash(hash)
                 .orElseThrow(() -> new RuntimeException("Guia não encontrada com o hash: " + hash));
     }
-}
+
+} // FIM DA CLASSE

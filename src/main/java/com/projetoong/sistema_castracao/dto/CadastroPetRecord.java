@@ -20,5 +20,8 @@ public record CadastroPetRecord(
         String idadeAprox,
         boolean vacinado,
         boolean operouAntes,
-        String medicamentos
+        String medicamentos,
+        // ADICIONE ESTES DOIS CAMPOS ABAIXO:
+        String statusProgresso, // Para vir o "CONCLUIDO"
+        String dataConcluido    // Para vir a data "10/02/2026"
 ) {}

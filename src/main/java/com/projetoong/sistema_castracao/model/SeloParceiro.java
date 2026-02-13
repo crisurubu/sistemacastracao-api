@@ -1,0 +1,26 @@
+package com.projetoong.sistema_castracao.model;
+
+public enum SeloParceiro {
+    INICIANTE(0, "Iniciante"),
+    BRONZE(20, "Bronze"),
+    PRATA(50, "Prata"),
+    OURO(100, "Ouro");
+
+    private final int meta;
+    private final String descricao;
+
+    SeloParceiro(int meta, String descricao) {
+        this.meta = meta;
+        this.descricao = descricao;
+    }
+
+    public int getMeta() { return meta; }
+    public String getDescricao() { return descricao; }
+
+    public static SeloParceiro calcular(int totalCastracoes) {
+        if (totalCastracoes >= OURO.meta) return OURO;
+        if (totalCastracoes >= PRATA.meta) return PRATA;
+        if (totalCastracoes >= BRONZE.meta) return BRONZE;
+        return INICIANTE;
+    }
+}

@@ -11,28 +11,30 @@ import org.springframework.web.multipart.MultipartFile;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/api/cadastro")
-@CrossOrigin(origins = "*")
+@RequestMapping("/api/cadastros") // Coloquei o 'S' para bater com o SecurityConfig e o Front
+@CrossOrigin(origins = "http://localhost:5173")
 public class CadastroController {
 
     @Autowired
     private CadastroService cadastroService;
 
+    // MÉTODO QUE ESTAVA FALTANDO PARA O ALARME FUNCIONAR
+    @GetMapping("/tutor/{id}")
+    public ResponseEntity<?> buscarPorTutor(@PathVariable Long id) {
+        // O service deve buscar no seu CadastroRepository usando o ID do tutor
+        var lista = cadastroService.buscarHistoricoPorTutor(id);
+        return ResponseEntity.ok(lista);
+    }
+
     @PostMapping(consumes = {"multipart/form-data"})
     public ResponseEntity<?> cadastrar(
             @RequestPart("dados") CadastroPetRecord dados,
             @RequestPart("arquivo") MultipartFile arquivo) {
-
         try {
-            // Chamamos o service que agora faz o upload para a nuvem
             cadastroService.cadastrar(dados, arquivo);
-
-            // Retornamos 201 (Created) e uma mensagem de sucesso
             return ResponseEntity.status(HttpStatus.CREATED)
-                    .body(Map.of("mensagem", "Cadastro e comprovante realizados com sucesso na nuvem!"));
-
+                    .body(Map.of("mensagem", "Cadastro realizado com sucesso!"));
         } catch (RuntimeException e) {
-            // Se o Cloudinary falhar ou o banco der erro, avisamos o Front
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("erro", e.getMessage()));
         }

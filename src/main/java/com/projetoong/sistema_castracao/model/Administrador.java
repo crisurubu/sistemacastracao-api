@@ -23,11 +23,15 @@ public class Administrador {
     @Column(nullable = false)
     private Role nivelAcesso;
 
+    // --- NOVO CAMPO ADICIONADO ---
+    @Column(nullable = false)
+    private boolean ativo = true;
+
     // --- CONSTRUTORES ---
     public Administrador() {
     }
 
-    // --- GETTERS E SETTERS (O que o compilador precisa) ---
+    // --- GETTERS E SETTERS ---
 
     public Long getId() {
         return id;
@@ -67,5 +71,14 @@ public class Administrador {
 
     public void setNivelAcesso(Role nivelAcesso) {
         this.nivelAcesso = nivelAcesso;
+    }
+
+    // --- NOVO GETTER E SETTER ---
+    public boolean isAtivo() {
+        return ativo;
+    }
+
+    public void setAtivo(boolean ativo) {
+        this.ativo = ativo;
     }
 }

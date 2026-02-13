@@ -8,8 +8,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/api/public/agendamentos") // Caminho que o seu React chamou no erro
-@CrossOrigin(origins = "*") // Libera para o React (Vite) acessar sem erro de CORS
+@RequestMapping("/api/publico") // Alinhado com o React e com o SecurityConfig
+@CrossOrigin(origins = "http://localhost:5173")
 public class VerificacaoController {
 
     @Autowired
@@ -18,11 +18,10 @@ public class VerificacaoController {
     @GetMapping("/verificar/{hash}")
     public ResponseEntity<?> verificarGuia(@PathVariable String hash) {
         try {
-            // Pede ao Service para buscar no banco pelo Hash
             Agendamento agendamento = agendamentoService.buscarPorHash(hash);
+            // Retornamos um objeto limpo para o front-end
             return ResponseEntity.ok(agendamento);
         } catch (RuntimeException e) {
-            // Se não existir o hash, retorna o erro 404
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
                     .body("Código Hash inválido ou não encontrado.");
         }

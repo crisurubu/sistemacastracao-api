@@ -68,32 +68,31 @@ public class PagamentoService {
 
         CadastroCastracao cadastro = pagamento.getCadastro();
 
-        // 1. Deletamos o pagamento primeiro
+        // --- ADICIONE ISSO AQUI: ENVIA O EMAIL ANTES DE DELETAR ---
+        if (cadastro != null && cadastro.getTutor() != null) {
+            String motivoPadrao = "Comprovante ilegível ou dados divergentes.";
+            emailService.enviarEmailPagamentoNaoIdentificado(
+                    cadastro.getTutor().getEmail(),
+                    cadastro.getTutor().getNome(),
+                    cadastro.getPet().getNomeAnimal(),
+                    motivoPadrao
+            );
+        }
+        // ---------------------------------------------------------
+
+        // Agora sim, pode seguir com a limpeza
         pagamentoRepository.delete(pagamento);
 
         if (cadastro != null) {
             Tutor tutor = cadastro.getTutor();
             Pet pet = cadastro.getPet();
 
-            // 2. Deletamos o vínculo do cadastro (O processo de castração desse pet)
             cadastroRepository.delete(cadastro);
+            if (pet != null) petRepository.delete(pet);
 
-            // 3. Deletamos o Pet que teve o erro no pagamento
-            if (pet != null) {
-                petRepository.delete(pet);
-            }
-
-            // 4. VERIFICAÇÃO DE SEGURANÇA PARA O TUTOR:
-            // Buscamos se esse tutor tem outros cadastros no sistema
             List<CadastroCastracao> outrosCadastros = cadastroRepository.findByTutor(tutor);
-
             if (outrosCadastros.isEmpty()) {
-                // Se ele não tem mais nenhum animal, podemos apagar o tutor
                 tutorRepository.delete(tutor);
-                System.out.println("Tutor removido: era o único cadastro.");
-            } else {
-                // Se ele tem outros pets aprovados, mantemos o tutor vivo no banco!
-                System.out.println("Tutor preservado: ele possui outros pets no sistema.");
             }
         }
     }
