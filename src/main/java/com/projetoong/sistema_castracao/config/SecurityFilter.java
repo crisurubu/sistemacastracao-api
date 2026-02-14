@@ -42,10 +42,14 @@ public class SecurityFilter extends OncePerRequestFilter {
 
         if (token != null) {
             var login = tokenService.getSubject(token);
+            System.out.println("FILTRO - Email extraído do Token: [" + login + "]"); // LOG AQUI
+
             var administrador = repository.findByEmail(login).orElse(null);
 
             if (administrador != null) {
                 String roleName = administrador.getNivelAcesso().name();
+                System.out.println("FILTRO - Usuário encontrado: " + administrador.getNome() + " | Role: " + roleName); // LOG AQUI
+
                 var authorities = List.of(
                         new SimpleGrantedAuthority("ROLE_" + roleName),
                         new SimpleGrantedAuthority(roleName)
@@ -55,6 +59,8 @@ public class SecurityFilter extends OncePerRequestFilter {
                         administrador, null, authorities);
 
                 SecurityContextHolder.getContext().setAuthentication(authentication);
+            } else {
+                System.out.println("FILTRO - ERRO: Usuário não encontrado no banco para o e-mail: " + login); // LOG AQUI
             }
         }
 

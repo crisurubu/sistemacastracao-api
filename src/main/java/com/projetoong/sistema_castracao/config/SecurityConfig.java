@@ -35,37 +35,44 @@ public class SecurityConfig {
                         // 1. PRIORIDADE ZERO: Liberação de Pre-flight (CORS)
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
-                        // 2. ROTAS PÚBLICAS (Acesso sem Token)
-                        // Colocamos o /api/publico/** no topo para o Spring não exigir JWT aqui
-                        // Exemplo no SecurityConfig.java
+                        // 2. EXCEÇÕES PÚBLICAS ESPECÍFICAS (Para evitar 403 no Cadastro)
+                        // Liberamos apenas a LEITURA da chave ativa para o Tutor conseguir pagar
+                        .requestMatchers(HttpMethod.GET, "/api/admin/configuracao-pix/ativa").permitAll()
+
+                        // 3. ROTAS PÚBLICAS GERAIS (Acesso sem Token)
                         .requestMatchers(HttpMethod.GET, "/api/sistema/status").permitAll()
                         .requestMatchers("/api/cadastros/**").permitAll()
                         .requestMatchers("/api/public/**", "/api/publico/**", "/api/tutores/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/cadastro").permitAll()
 
-                        // 3. ÁREA DA CLÍNICA
+                        // 4. ÁREA DA CLÍNICA
                         .requestMatchers("/api/clinica/**").hasAnyAuthority("CLINICA", "ROLE_CLINICA", "MASTER", "ROLE_MASTER")
 
-                        // 4. OPERACIONAL ONG (Alertas, Tutores e Agendamentos)
+                        // 5. OPERACIONAL ONG (Alertas, Tutores, Agendamentos e Extrato)
                         .requestMatchers("/api/admin/alarmes/**").hasAnyAuthority("MASTER", "VOLUNTARIO", "ROLE_MASTER", "ROLE_VOLUNTARIO")
                         .requestMatchers("/api/admin/tutores/**").hasAnyAuthority("MASTER", "VOLUNTARIO", "ROLE_MASTER", "ROLE_VOLUNTARIO")
                         .requestMatchers("/api/admin/agendamentos/**").hasAnyAuthority("MASTER", "VOLUNTARIO", "CLINICA", "ROLE_MASTER", "ROLE_VOLUNTARIO", "ROLE_CLINICA")
 
-                                // 5. GESTÃO MASTER E ACESSO ÀS CLÍNICAS
-// Liberamos o GET para Voluntários (necessário para listar clínicas no agendamento)
-                                .requestMatchers(HttpMethod.GET, "/api/admin/clinicas/**").hasAnyAuthority("MASTER", "VOLUNTARIO", "ROLE_MASTER", "ROLE_VOLUNTARIO")
+                        // Extrato de Auditoria
+                        .requestMatchers("/api/admin/pagamentos/extrato").hasAnyAuthority("MASTER", "VOLUNTARIO", "ROLE_MASTER", "ROLE_VOLUNTARIO")
 
-// Bloqueamos POST, PUT e DELETE de clínicas apenas para MASTER
-                                .requestMatchers("/api/admin/clinicas/**").hasAnyAuthority("MASTER", "ROLE_MASTER")
+                        // 6. GESTÃO MASTER (Acesso restrito)
 
-// Outras rotas administrativas exclusivas
-                                .requestMatchers("/api/admin/voluntarios/**").hasAnyAuthority("MASTER", "ROLE_MASTER")
-                                .requestMatchers(HttpMethod.PATCH, "/api/sistema/admin/toggle").hasAnyAuthority("MASTER", "ROLE_MASTER")
-                        // QUALQUER OUTRA ROTA EXIGE TOKEN
+                        // Gestão de PIX (Criação/Edição/Exclusão - Protegido!)
+                        .requestMatchers("/api/admin/configuracao-pix/**").hasAnyAuthority("MASTER", "ROLE_MASTER")
+
+                        // Clínicas
+                        .requestMatchers(HttpMethod.GET, "/api/admin/clinicas/**").hasAnyAuthority("MASTER", "VOLUNTARIO", "ROLE_MASTER", "ROLE_VOLUNTARIO")
+                        .requestMatchers("/api/admin/clinicas/**").hasAnyAuthority("MASTER", "ROLE_MASTER")
+
+                        // Voluntários e Controle de Sistema
+                        .requestMatchers("/api/admin/voluntarios/**").hasAnyAuthority("MASTER", "ROLE_MASTER")
+                        .requestMatchers(HttpMethod.PATCH, "/api/sistema/admin/toggle").hasAnyAuthority("MASTER", "ROLE_MASTER")
+
+                        // 7. BLOQUEIO FINAL
                         .anyRequest().authenticated()
                 )
-                // O filtro de segurança deve vir DEPOIS das definições de permitAll para evitar 403 em rotas abertas
                 .addFilterBefore(securityFilter, UsernamePasswordAuthenticationFilter.class)
                 .build();
     }
@@ -73,7 +80,8 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(Arrays.asList("http://localhost:5173"));
+        // Verifique se o seu Frontend está em http://localhost:5173 (Vite) ou 3000 (React antigo)
+        configuration.setAllowedOrigins(Arrays.asList("http://localhost:5173", "http://localhost:3000"));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
         configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "Accept"));
         configuration.setAllowCredentials(true);

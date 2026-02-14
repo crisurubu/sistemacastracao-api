@@ -20,21 +20,23 @@ public class AutenticacaoService {
     private PasswordEncoder passwordEncoder;
 
     public String validarLogin(LoginDTO dados) {
-        // 1. Busca o admin pelo email
+        // 1. Busca o administrador pelo e-mail
         Administrador admin = repository.findByEmail(dados.email())
-                .orElseThrow(() -> new RuntimeException("E-mail não encontrado"));
+                .orElseThrow(() -> new RuntimeException("E-mail ou senha incorretos."));
 
-        // --- NOVO AJUSTE: VERIFICA SE O USUÁRIO ESTÁ ATIVO ---
+        // 2. Verifica se a conta está ativa (Importante para o controle da ONG)
         if (!admin.isAtivo()) {
-            throw new RuntimeException("Conta desativada. Entre em contato com a ONG.");
+            throw new RuntimeException("Sua conta está inativa. Por favor, contate a administração.");
         }
 
-        // 2. Compara a senha (usando BCrypt)
+        // 3. Validação da senha com BCrypt
+        // Como o ajuste já foi feito, não precisamos mais do 'save' aqui dentro
         if (!passwordEncoder.matches(dados.senha(), admin.getSenha())) {
-            throw new RuntimeException("Senha incorreta");
+            throw new RuntimeException("E-mail ou senha incorretos.");
         }
 
-        // 3. Se deu tudo certo, gera e retorna o Token JWT
+        // 4. Login bem-sucedido: Gera o Token JWT com as permissões (MASTER, CLINICA ou VOLUNTARIO)
         return tokenService.gerarToken(admin);
     }
+
 }

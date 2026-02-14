@@ -1,9 +1,11 @@
 package com.projetoong.sistema_castracao.controller;
 
 import com.projetoong.sistema_castracao.model.Agendamento;
+import com.projetoong.sistema_castracao.model.Administrador; // Importamos para limpar o código
 import com.projetoong.sistema_castracao.service.AgendamentoService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -17,32 +19,42 @@ public class AgendamentoController {
     @Autowired
     private AgendamentoService agendamentoService;
 
+    // Método para extrair o e-mail de forma limpa e evitar repetição de código
+    private String extrairEmail(Authentication auth) {
+        if (auth.getPrincipal() instanceof Administrador) {
+            return ((Administrador) auth.getPrincipal()).getEmail();
+        }
+        return auth.getName();
+    }
+
     @PostMapping
-    public ResponseEntity<Agendamento> agendar(@RequestBody Map<String, String> payload) {
-        // Agora pegamos o clinicaId do payload vindo do React
+    public ResponseEntity<Agendamento> agendar(@RequestBody Map<String, String> payload, Authentication auth) {
+        String email = extrairEmail(auth);
+
         Agendamento novo = agendamentoService.criarNovoAgendamento(
                 Long.parseLong(payload.get("cadastroId")),
                 payload.get("dataHora"),
-                Long.parseLong(payload.get("clinicaId")) // MUDANÇA AQUI: De String para Long
+                Long.parseLong(payload.get("clinicaId")),
+                email // Enviando String
         );
         return ResponseEntity.ok(novo);
     }
 
     @PutMapping("/reagendar")
-    public ResponseEntity<Agendamento> reagendar(@RequestBody Map<String, String> payload) {
-        Long agendamentoId = Long.parseLong(payload.get("agendamentoId"));
-        String novaDataHora = payload.get("dataHora");
-        // Se no reagendamento você também permitir trocar a clínica:
-        Long novaClinicaId = Long.parseLong(payload.get("clinicaId"));
+    public ResponseEntity<Agendamento> reagendar(@RequestBody Map<String, String> payload, Authentication auth) {
+        String email = extrairEmail(auth);
 
-        // Ajuste o seu método reagendar no Service para aceitar o Long novaClinicaId também
-        Agendamento atualizado = agendamentoService.reagendar(agendamentoId, novaDataHora, novaClinicaId);
+        Agendamento atualizado = agendamentoService.reagendar(
+                Long.parseLong(payload.get("agendamentoId")),
+                payload.get("dataHora"),
+                Long.parseLong(payload.get("clinicaId")),
+                email // AGORA TAMBÉM ENVIA STRING
+        );
         return ResponseEntity.ok(atualizado);
     }
 
     @GetMapping("/pendentes")
     public ResponseEntity<List<Agendamento>> listarPendentes() {
-        List<Agendamento> lista = agendamentoService.listarAgendamentosPendentes();
-        return ResponseEntity.ok(lista);
+        return ResponseEntity.ok(agendamentoService.listarAgendamentosPendentes());
     }
 }

@@ -5,12 +5,18 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.Optional;
 
 public interface VoluntarioRepository extends JpaRepository<Voluntario, Long> {
+
     // A chave para sua lógica de "Cadastro ou Atualização"
     Optional<Voluntario> findByCpf(String cpf);
 
-    // Para validar se o e-mail já está em uso por outro voluntário
-    Optional<Voluntario> findByEmailContato(String email);
+    // 2. Se o seu campo de e-mail na Entity se chama "emailContato", use este:
+    Optional<Voluntario> findByEmailContato(String emailContato);
 
-    // ADICIONE ESTA LINHA:
+    // --- ADICIONE ESTE MÉTODO ABAIXO ---
+    // Ele permite buscar o voluntário usando o ID do Administrador logado
+    // O Spring JPA entende que deve olhar para a propriedade "administrador" e pegar o "id" dela
+    Optional<Voluntario> findByAdministradorId(Long administradorId);
+
+    // Contagem para o Dashboard da ONG
     long countByAtivo(boolean ativo);
 }

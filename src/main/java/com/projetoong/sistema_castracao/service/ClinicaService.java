@@ -31,9 +31,7 @@ public class ClinicaService {
     @Autowired
     private EmailService emailService;
 
-
-
-    // --- 1. SALVAR OU ATUALIZAR (O que o React usa no Cadastro) ---
+    // --- 1. SALVAR OU ATUALIZAR ---
     @Transactional
     public Clinica salvarOuAtualizar(Clinica clinica) {
         return clinicaRepository.findByCnpj(clinica.getCnpj())
@@ -44,6 +42,7 @@ public class ClinicaService {
     private Clinica cadastrarNova(Clinica clinica) {
         Administrador adm = clinica.getAdministrador();
         String senhaOriginal = adm.getSenha();
+
         clinica.setEmail(adm.getEmail());
         adm.setSenha(passwordEncoder.encode(senhaOriginal));
         adm.setNivelAcesso(Role.CLINICA);
@@ -52,12 +51,15 @@ public class ClinicaService {
         clinica.setAdministrador(administradorRepository.save(adm));
         Clinica salva = clinicaRepository.save(clinica);
 
-        try { emailService.enviarEmailBoasVindasClinica(salva, senhaOriginal); }
-        catch (Exception e) { System.err.println("Erro e-mail: " + e.getMessage()); }
+        try {
+            emailService.enviarEmailBoasVindasClinica(salva, senhaOriginal);
+        } catch (Exception e) {
+            System.err.println("Erro e-mail boas-vindas: " + e.getMessage());
+        }
         return salva;
     }
 
-    // --- 2. ATUALIZAR (Usado tanto pelo salvarOuAtualizar quanto pelo PUT direto) ---
+    // --- 2. ATUALIZAR (Lógica revisada e sem logs) ---
     @Transactional
     public Clinica atualizarExistente(Clinica existente, Clinica dadosNovos) {
         existente.setNome(dadosNovos.getNome());
@@ -67,37 +69,44 @@ public class ClinicaService {
 
         if (dadosNovos.getAdministrador() != null) {
             Administrador adm = existente.getAdministrador();
-            adm.setNome(dadosNovos.getNome());
             adm.setEmail(dadosNovos.getAdministrador().getEmail());
             existente.setEmail(adm.getEmail());
 
-            if (dadosNovos.getAdministrador().getSenha() != null && !dadosNovos.getAdministrador().getSenha().trim().isEmpty()) {
-                String novaSenha = dadosNovos.getAdministrador().getSenha();
+            String novaSenha = dadosNovos.getAdministrador().getSenha();
+            if (novaSenha != null && !novaSenha.isBlank()) {
                 adm.setSenha(passwordEncoder.encode(novaSenha));
-                try { emailService.enviarEmailSenhaAlteradaClinica(existente, novaSenha); }
-                catch (Exception e) { System.err.println("Erro e-mail senha: " + e.getMessage()); }
+                try {
+                    emailService.enviarEmailSenhaAlteradaClinica(existente, novaSenha);
+                } catch (Exception e) {
+                    System.err.println("Erro e-mail alteração senha: " + e.getMessage());
+                }
             }
+            administradorRepository.save(adm);
         }
-        return clinicaRepository.save(existente);
+
+        Clinica salva = clinicaRepository.save(existente);
+
+        // Garante a escrita imediata para evitar problemas de cache no login
+        clinicaRepository.flush();
+        administradorRepository.flush();
+
+        return salva;
     }
 
+    // --- 3. GESTÃO DE CASTRAÇÕES E SELOS ---
     @Transactional
     public void registrarCastracaoConcluida(Long id) {
         Clinica clinica = clinicaRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Clínica não encontrada"));
 
-        // 1. Incrementa o contador
         int novoTotal = clinica.getTotalCastracoes() + 1;
         clinica.setTotalCastracoes(novoTotal);
-
-        // 2. Atualiza o selo persistente usando a regra do Enum
         clinica.setSelo(SeloParceiro.calcular(novoTotal));
 
-        // 3. Salva a clínica com o novo total e o novo selo
         clinicaRepository.save(clinica);
     }
 
-    // --- 4. DASHBOARD E MÉTODOS DE APOIO ---
+    // --- 4. DASHBOARD E APOIO ---
     public Optional<Clinica> buscarPorCnpj(String cnpj) {
         return clinicaRepository.findByCnpj(cnpj);
     }
@@ -133,16 +142,13 @@ public class ClinicaService {
     }
 
     public void alterarSenha(String email, String senhaAtual, String novaSenha) {
-        // 1. Buscamos o Administrador pelo e-mail (que é a chave do login)
         Administrador admin = administradorRepository.findByEmail(email)
                 .orElseThrow(() -> new IllegalArgumentException("Conta de acesso não encontrada."));
 
-        // 2. O matches deve comparar com admin.getSenha()
         if (!passwordEncoder.matches(senhaAtual, admin.getSenha())) {
             throw new IllegalArgumentException("A senha atual digitada está incorreta.");
         }
 
-        // 3. Salvamos a nova senha criptografada no Administrador
         admin.setSenha(passwordEncoder.encode(novaSenha));
         administradorRepository.save(admin);
     }

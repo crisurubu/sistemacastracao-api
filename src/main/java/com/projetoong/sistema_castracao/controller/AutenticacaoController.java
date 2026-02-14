@@ -24,23 +24,25 @@ public class AutenticacaoController {
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody LoginDTO dados) {
         try {
-            // 1. O service valida e gera o token JWT
+            System.out.println(">>> Tentativa de login recebida para: " + dados.email());
+
             String token = autenticacaoService.validarLogin(dados);
 
-            // 2. Buscamos o administrador para enviar os dados que o React espera
-            // .get() aqui é seguro porque o service já validou que o usuário existe
             Administrador admin = administradorRepository.findByEmail(dados.email()).get();
 
-            // 3. Retornamos o pacote completo: Token + User
+            System.out.println(">>> Login realizado com sucesso para: " + admin.getNome());
+
             return ResponseEntity.ok(Map.of(
                     "token", token,
                     "user", Map.of(
                             "nome", admin.getNome(),
                             "email", admin.getEmail(),
-                            "nivelAcesso", admin.getNivelAcesso() // MASTER ou VOLUNTARIO
+                            "nivelAcesso", admin.getNivelAcesso()
                     )
             ));
-        } catch (RuntimeException e) {
+        } catch (Exception e) {
+            System.err.println(">>> ERRO NO LOGIN: " + e.getMessage());
+            e.printStackTrace(); // Isso vai mostrar a linha exata onde falhou no seu Service
             return ResponseEntity.status(401).body(Map.of("erro", e.getMessage()));
         }
     }

@@ -3,18 +3,14 @@ package com.projetoong.sistema_castracao.controller;
 import com.cloudinary.Cloudinary;
 import com.cloudinary.utils.ObjectUtils;
 import com.projetoong.sistema_castracao.dto.DashboardSummaryDTO;
-import com.projetoong.sistema_castracao.model.CadastroCastracao;
-import com.projetoong.sistema_castracao.model.Pagamento;
-import com.projetoong.sistema_castracao.model.Pet;
-import com.projetoong.sistema_castracao.model.Tutor;
-import com.projetoong.sistema_castracao.repository.CadastroCastracaoRepository;
-import com.projetoong.sistema_castracao.repository.PagamentoRepository;
-import com.projetoong.sistema_castracao.repository.PetRepository;
-import com.projetoong.sistema_castracao.repository.TutorRepository;
+import com.projetoong.sistema_castracao.model.*;
+import com.projetoong.sistema_castracao.repository.*;
 import com.projetoong.sistema_castracao.service.AlarmeService;
 import com.projetoong.sistema_castracao.service.DashboardService;
+import com.projetoong.sistema_castracao.service.PagamentoService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication; // Importação importante
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -27,98 +23,85 @@ import java.util.Map;
 @CrossOrigin(origins = "http://localhost:5173")
 public class AdminController {
 
-    @Autowired
-    private PagamentoRepository pagamentoRepository;
-
-    @Autowired
-    private PetRepository petRepository;
-
-    @Autowired
-    private TutorRepository tutorRepository;
-
-    @Autowired
-    private AlarmeService alarmeService;
-
-    @Autowired
-    private DashboardService dashboardService;
-
-    @Autowired
-    private CadastroCastracaoRepository cadastroCastracaoRepository;
-
-    @Autowired
-    private Cloudinary cloudinary;
+    @Autowired private PagamentoRepository pagamentoRepository;
+    @Autowired private PetRepository petRepository;
+    @Autowired private TutorRepository tutorRepository;
+    @Autowired private VoluntarioRepository voluntarioRepository; // Necessário para buscar o aprovador
+    @Autowired private AlarmeService alarmeService;
+    @Autowired private DashboardService dashboardService;
+    @Autowired private CadastroCastracaoRepository cadastroCastracaoRepository;
+    @Autowired private Cloudinary cloudinary;
+    @Autowired private PagamentoService pagamentoService;
 
     @GetMapping("/pagamentos/pendentes")
     public List<Pagamento> listarPendentes() {
         return pagamentoRepository.findByConfirmadoFalse();
     }
 
-    @Autowired
-    private com.projetoong.sistema_castracao.service.PagamentoService pagamentoService; // Injete o Service
+    @PatchMapping("/pagamentos/{id}/aprovar")
+    public ResponseEntity<Void> aprovarPagamento(@PathVariable Long id, Authentication authentication) {
+        // 1. Extrai o e-mail de forma segura
+        String emailLogado;
 
-    @PatchMapping("/pagamentos/{id}/aprovar") // Mudei para bater com o nome no React
-    public ResponseEntity<Void> aprovarPagamento(@PathVariable Long id) {
-        // Agora sim: confirma, muda status, entra na fila e manda e-mail!
-        pagamentoService.confirmarPagamento(id);
+        // Verifica se o principal é o nosso modelo de Administrador ou apenas o nome do Security
+        if (authentication.getPrincipal() instanceof com.projetoong.sistema_castracao.model.Administrador) {
+            emailLogado = ((com.projetoong.sistema_castracao.model.Administrador) authentication.getPrincipal()).getEmail();
+        } else {
+            emailLogado = authentication.getName();
+        }
+
+        // 2. Buscamos o objeto Voluntario para passar ao Service
+        // Se não encontrar (caso do Cristiano que loga como Admin), o Service
+        // vai usar o 'emailLogado' para tentar achar ele na tabela de voluntários.
+        Voluntario aprovador = voluntarioRepository.findByEmailContato(emailLogado).orElse(null);
+
+        // 3. Chama o Service com os dados corrigidos
+        // Passamos o objeto (se existir) e o e-mail (como garantia/emailMaster)
+        pagamentoService.confirmarPagamento(id, aprovador, emailLogado);
+
         return ResponseEntity.ok().build();
     }
+
+    @GetMapping("/pagamentos/extrato")
+    public ResponseEntity<List<Pagamento>> buscarExtratoCompleto() {
+        return ResponseEntity.ok(pagamentoService.listarExtratoAuditoria());
+    }
+
     @PatchMapping("/pagamentos/{id}/rejeitar")
     public ResponseEntity<Void> rejeitarPagamento(@PathVariable Long id) {
-        // O Controller não sabe "como" deleta, ele apenas manda o Service fazer
         pagamentoService.rejeitarERemoverTudo(id);
         return ResponseEntity.ok().build();
     }
 
-
-    // No AdminController.java
     @GetMapping("/fila-espera")
     public List<CadastroCastracao> listarFila() {
-        // Usamos o status exato que vimos no seu log do banco
-        String statusBusca = "NA_FILA";
-
-        List<CadastroCastracao> lista = cadastroCastracaoRepository.findByStatusProcessoIgnoreCase(statusBusca);
-
-        System.out.println("Busca no Java por: " + statusBusca);
-        System.out.println("Quantidade encontrada: " + lista.size());
-
-        return lista;
+        return cadastroCastracaoRepository.findByStatusProcessoIgnoreCase("NA_FILA");
     }
+
     @GetMapping("/tutores")
     public List<Tutor> listarTutores(@RequestParam(required = false) String search) {
         if (search != null && !search.isEmpty()) {
-            // Se houver busca, filtra pelo nome (precisa criar no Repository)
             return tutorRepository.findByNomeContainingIgnoreCase(search);
         }
-        // Se não houver busca, retorna todos para a gestão
         return tutorRepository.findAll();
     }
+
     @GetMapping("/alarmes")
     public List<Map<String, String>> buscarAlarmes() {
-        // O Controller não sabe "como" o alarme é feito, ele só pede o resultado
         return alarmeService.gerarRelatorioAlarmes();
     }
 
-    // No seu AdminController.java
-
     @GetMapping("/dashboard-summary")
     public ResponseEntity<DashboardSummaryDTO> getSummary() {
-        // Agora o retorno é DashboardSummaryDTO, não mais Map
         return ResponseEntity.ok(dashboardService.getResumoCompleto());
     }
 
     @PostMapping("/pagamentos/upload-comprovante")
     public ResponseEntity<?> uploadComprovante(@RequestParam("file") MultipartFile file) {
         try {
-            // Envia para o Cloudinary na pasta 'comprovantes'
             Map uploadResult = cloudinary.uploader().upload(file.getBytes(),
                     ObjectUtils.asMap("folder", "ong_comprovantes"));
-
-            // Pega o link seguro (https)
-            String urlNuvem = uploadResult.get("secure_url").toString();
-
-            // Retorna apenas a URL para o Front-end
-            return ResponseEntity.ok(Map.of("url", urlNuvem));
-
+            return ResponseEntity.ok(Map.of("url", uploadResult.get("secure_url").toString()));
         } catch (IOException e) {
             return ResponseEntity.status(500).body("Erro ao subir arquivo para a nuvem");
         }

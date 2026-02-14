@@ -1,18 +1,13 @@
 package com.projetoong.sistema_castracao.service;
 
-import com.projetoong.sistema_castracao.model.CadastroCastracao;
-import com.projetoong.sistema_castracao.model.Pagamento;
-import com.projetoong.sistema_castracao.model.Pet;
-import com.projetoong.sistema_castracao.model.Tutor;
-import com.projetoong.sistema_castracao.repository.CadastroCastracaoRepository;
-import com.projetoong.sistema_castracao.repository.PagamentoRepository;
-import com.projetoong.sistema_castracao.repository.PetRepository;
-import com.projetoong.sistema_castracao.repository.TutorRepository;
+import com.projetoong.sistema_castracao.model.*;
+import com.projetoong.sistema_castracao.repository.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 public class PagamentoService {
@@ -32,31 +27,79 @@ public class PagamentoService {
     @Autowired
     private TutorRepository tutorRepository;
 
+    @Autowired
+    private VoluntarioRepository voluntarioRepository;
+
+    @Autowired
+    private ConfiguracaoPixService pixService;
+
     @Transactional
-    public void confirmarPagamento(Long pagamentoId) {
+    public void confirmarPagamento(Long pagamentoId, Voluntario voluntarioLogado, String emailMaster) {
         // 1. Busca o pagamento
         Pagamento pagamento = pagamentoRepository.findById(pagamentoId)
                 .orElseThrow(() -> new RuntimeException("Pagamento não encontrado"));
 
-        // 2. Pega o Cadastro vinculado ao pagamento
-        CadastroCastracao cadastro = pagamento.getCadastro();
+        // 2. BUSCA A CONTA DESTINO ATIVA AGORA
+        ConfiguracaoPix pixAtivo = pixService.buscarChaveAtiva();
 
-        // 3. Puxa os dados para o e-mail de forma segura
-        // Verifique se na sua classe CadastroCastracao existe o campo 'tutor' e 'pet'
+        // 3. Pega o Cadastro vinculado
+        CadastroCastracao cadastro = pagamento.getCadastro();
         String emailTutor = cadastro.getTutor().getEmail();
         String nomePet = cadastro.getPet().getNomeAnimal();
 
-        // 4. Atualiza o status
+        // 4. ATUALIZAÇÃO COM AUDITORIA
         pagamento.setConfirmado(true);
         pagamento.setDataConfirmacao(LocalDateTime.now());
+        pagamento.setContaDestino(pixAtivo);
+
+        // --- LÓGICA DE AUDITORIA CORRIGIDA ---
+        Voluntario aprovadorReal = voluntarioLogado;
+
+        // Se o objeto voluntário não veio pronto, tentamos buscar pelo e-mail que está logado
+        if (aprovadorReal == null && emailMaster != null) {
+            aprovadorReal = voluntarioRepository.findByEmailContato(emailMaster.trim().toLowerCase()).orElse(null);
+        }
+
+        if (aprovadorReal != null) {
+            // SE IDENTIFICOU O VOLUNTÁRIO, GRAVA O ID (FK) E O NOME
+            pagamento.setAprovadoPor(aprovadorReal);
+            pagamento.setAprovadorNome(aprovadorReal.getNome());
+        } else {
+            // SE NÃO ACHOU VOLUNTÁRIO, VERIFICA SE É A ONG OU MASTER GENÉRICO
+            pagamento.setAprovadoPor(null);
+            if (emailMaster != null && emailMaster.equalsIgnoreCase("sistemacastracao@gmail.com")) {
+                pagamento.setAprovadorNome("Sistema Castracao ong");
+            } else {
+                pagamento.setAprovadorNome("SISTEMA MASTER (ONG)");
+            }
+        }
+
+        // --- LÓGICA DE VALOR ---
+        if (pixAtivo.getValorTaxa() != null) {
+            Double valorConfigurado = pixAtivo.getValorTaxa().doubleValue();
+            Double valorNoBanco = pagamento.getValorContribuicao();
+
+            if (valorNoBanco == null || valorNoBanco < valorConfigurado) {
+                pagamento.setValorContribuicao(valorConfigurado);
+            }
+        }
+
+        // 5. ATUALIZA O STATUS DO PROCESSO
         cadastro.setStatusProcesso("NA_FILA");
 
+        // 6. SALVA TUDO
         pagamentoRepository.save(pagamento);
 
-        // 5. Envia o e-mail
+        // 7. ENVIO DO E-MAIL
         emailService.enviarRecomendacoes(emailTutor, nomePet);
+
+        System.out.println("✅ Pagamento aprovado por: " + pagamento.getAprovadorNome() + " para: " + emailTutor);
     }
-    // Alarme para a Dona da ONG: Quem enviou comprovante mas não foi aprovado ainda
+
+    public List<Pagamento> listarExtratoAuditoria() {
+        return pagamentoRepository.findByConfirmadoTrueOrderByDataConfirmacaoDesc();
+    }
+
     public List<Pagamento> listarPendentes() {
         return pagamentoRepository.findByConfirmadoFalse();
     }
@@ -68,7 +111,6 @@ public class PagamentoService {
 
         CadastroCastracao cadastro = pagamento.getCadastro();
 
-        // --- ADICIONE ISSO AQUI: ENVIA O EMAIL ANTES DE DELETAR ---
         if (cadastro != null && cadastro.getTutor() != null) {
             String motivoPadrao = "Comprovante ilegível ou dados divergentes.";
             emailService.enviarEmailPagamentoNaoIdentificado(
@@ -78,9 +120,7 @@ public class PagamentoService {
                     motivoPadrao
             );
         }
-        // ---------------------------------------------------------
 
-        // Agora sim, pode seguir com a limpeza
         pagamentoRepository.delete(pagamento);
 
         if (cadastro != null) {
@@ -96,5 +136,4 @@ public class PagamentoService {
             }
         }
     }
-
 }
