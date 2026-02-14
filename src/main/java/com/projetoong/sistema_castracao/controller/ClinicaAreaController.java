@@ -1,5 +1,6 @@
 package com.projetoong.sistema_castracao.controller;
 
+import com.projetoong.sistema_castracao.dto.AlterarSenhaDTO;
 import com.projetoong.sistema_castracao.model.Administrador;
 import com.projetoong.sistema_castracao.model.Agendamento;
 import com.projetoong.sistema_castracao.model.Clinica;
@@ -89,5 +90,24 @@ public class ClinicaAreaController {
         // Você pode chamar clinicaService.registrarCastracaoConcluida(clinicaId) aqui se tiver o ID.
 
         return ResponseEntity.ok().build();
+    }
+
+    @PreAuthorize("hasAnyAuthority('CLINICA', 'ROLE_CLINICA')")
+    @PutMapping("/alterar-senha")
+    public ResponseEntity<?> alterarSenha(@RequestBody AlterarSenhaDTO dto, Authentication authentication) {
+        try {
+            // Identifica a clínica logada
+            String email = (authentication.getPrincipal() instanceof Administrador)
+                    ? ((Administrador) authentication.getPrincipal()).getEmail()
+                    : authentication.getName();
+
+            clinicaService.alterarSenha(email, dto.senhaAtual(), dto.novaSenha());
+            return ResponseEntity.ok().body(Map.of("message", "Senha alterada com sucesso!"));
+
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(400).body(Map.of("message", e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(Map.of("message", "Erro interno ao alterar senha."));
+        }
     }
 }

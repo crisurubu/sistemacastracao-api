@@ -17,6 +17,8 @@ public class DashboardService {
     @Autowired private AgendamentoRepository agendamentoRepository;
     // Injetamos o repositório que tem o statusProcesso
     @Autowired private CadastroRepository cadastroRepository;
+    @Autowired
+    private VoluntarioService voluntarioService; // Injeção aqui!
 
     public DashboardSummaryDTO getResumoCompleto() {
         // 1. Buscamos os dados dos Cards (Geral)
@@ -44,15 +46,19 @@ public class DashboardService {
                 ((Number) coluna[4]).longValue()
         )).collect(Collectors.toList());
 
-        // 4. Retornamos o Record com os novos campos
+        // 4. Retornamos o Record com os novos campos (incluindo Voluntários)
         return new DashboardSummaryDTO(
                 totalPets,
                 tutoresAtivos,
                 arrecadacaoTotal,
-                aguardandoPgto, // Novo campo
-                naFila,         // Substitui o antigo filaEspera
-                agendados,      // Status AGENDADO da tabela cadastros
-                concluidos,     // Novo campo
+                aguardandoPgto,
+                naFila,
+                agendados,
+                concluidos,
+                // ADICIONE ESTES DOIS AQUI:
+                voluntarioService.contarAtivos(true),  // totalVoluntariosAtivos
+                voluntarioService.contarAtivos(false), // totalVoluntariosInativos
+                // -------------------------
                 fluxoFinanceiro,
                 performanceClinicas,
                 distribuicaoEspecies

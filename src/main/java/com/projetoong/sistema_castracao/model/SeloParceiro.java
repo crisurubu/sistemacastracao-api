@@ -2,9 +2,9 @@ package com.projetoong.sistema_castracao.model;
 
 public enum SeloParceiro {
     INICIANTE(0, "Iniciante"),
-    BRONZE(20, "Bronze"),
-    PRATA(50, "Prata"),
-    OURO(100, "Ouro");
+    BRONZE(1, "Bronze"),
+    PRATA(20, "Prata"),
+    OURO(50, "Ouro");
 
     private final int meta;
     private final String descricao;

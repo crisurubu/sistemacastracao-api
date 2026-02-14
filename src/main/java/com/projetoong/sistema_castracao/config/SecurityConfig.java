@@ -38,6 +38,7 @@ public class SecurityConfig {
                         // 2. ROTAS PÚBLICAS (Acesso sem Token)
                         // Colocamos o /api/publico/** no topo para o Spring não exigir JWT aqui
                         // Exemplo no SecurityConfig.java
+                        .requestMatchers(HttpMethod.GET, "/api/sistema/status").permitAll()
                         .requestMatchers("/api/cadastros/**").permitAll()
                         .requestMatchers("/api/public/**", "/api/publico/**", "/api/tutores/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll()
@@ -51,9 +52,16 @@ public class SecurityConfig {
                         .requestMatchers("/api/admin/tutores/**").hasAnyAuthority("MASTER", "VOLUNTARIO", "ROLE_MASTER", "ROLE_VOLUNTARIO")
                         .requestMatchers("/api/admin/agendamentos/**").hasAnyAuthority("MASTER", "VOLUNTARIO", "CLINICA", "ROLE_MASTER", "ROLE_VOLUNTARIO", "ROLE_CLINICA")
 
-                        // 5. GESTÃO MASTER
-                        .requestMatchers("/api/admin/clinicas/**").hasAnyAuthority("MASTER", "ROLE_MASTER")
+                                // 5. GESTÃO MASTER E ACESSO ÀS CLÍNICAS
+// Liberamos o GET para Voluntários (necessário para listar clínicas no agendamento)
+                                .requestMatchers(HttpMethod.GET, "/api/admin/clinicas/**").hasAnyAuthority("MASTER", "VOLUNTARIO", "ROLE_MASTER", "ROLE_VOLUNTARIO")
 
+// Bloqueamos POST, PUT e DELETE de clínicas apenas para MASTER
+                                .requestMatchers("/api/admin/clinicas/**").hasAnyAuthority("MASTER", "ROLE_MASTER")
+
+// Outras rotas administrativas exclusivas
+                                .requestMatchers("/api/admin/voluntarios/**").hasAnyAuthority("MASTER", "ROLE_MASTER")
+                                .requestMatchers(HttpMethod.PATCH, "/api/sistema/admin/toggle").hasAnyAuthority("MASTER", "ROLE_MASTER")
                         // QUALQUER OUTRA ROTA EXIGE TOKEN
                         .anyRequest().authenticated()
                 )

@@ -22,25 +22,19 @@ public class Clinica {
     private String telefone;
     private String endereco;
 
-    // Este campo aqui pode causar conflito se estiver vazio no banco.
-    // O ideal é que ele seja o mesmo e-mail do Administrador.
     @Column(unique = true)
     private String email;
 
     private int totalCastracoes = 0;
 
-    // AJUSTE AQUI: O nome da coluna no banco é 'usuario_id',
-    // mas o objeto no Java se chama 'administrador'.
+    // NOVO CAMPO: Persistido no banco para performance e consultas SQL
+    @Enumerated(EnumType.STRING)
+    private SeloParceiro selo = SeloParceiro.INICIANTE;
+
     @OneToOne(cascade = CascadeType.ALL)
     @JoinColumn(name = "usuario_id", referencedColumnName = "id")
     private Administrador administrador;
 
-    // Para evitar erros de carregamento quando o objeto é convertido para JSON
-    public SeloParceiro getSelo() {
-        return SeloParceiro.calcular(this.totalCastracoes);
-    }
-
-    // --- CONSTRUTORES ---
     public Clinica() {}
 
     // --- GETTERS E SETTERS ---
@@ -67,6 +61,9 @@ public class Clinica {
 
     public int getTotalCastracoes() { return totalCastracoes; }
     public void setTotalCastracoes(int totalCastracoes) { this.totalCastracoes = totalCastracoes; }
+
+    public SeloParceiro getSelo() { return selo; }
+    public void setSelo(SeloParceiro selo) { this.selo = selo; }
 
     public Administrador getAdministrador() { return administrador; }
     public void setAdministrador(Administrador administrador) { this.administrador = administrador; }

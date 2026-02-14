@@ -11,6 +11,8 @@ public record DashboardSummaryDTO(
         long totalNaFila,
         long totalAgendados,
         long totalConcluidos,
+        long totalVoluntariosAtivos,
+        long totalVoluntariosInativos,
         List<FluxoFinanceiroDTO> fluxoFinanceiro,
         List<PerformanceClinicaDTO> topClinicas,
         List<EspecieDTO> distribuicaoEspecies
