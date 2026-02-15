@@ -35,7 +35,7 @@ public class EmailService {
                         "Sua colaboração é fundamental para o sucesso do projeto. Graças à sua estrutura, " +
                         "zelaremos pela saúde pública e bem-estar animal.\n\n" +
                         "--- SEUS DADOS DE ACESSO AO PAINEL ---\n" +
-                        "🔗 Link: http://localhost:5173/admin/login\n" +
+                        "🔗 Link: https://sistema-castracao-app.onrender.com/admin/login\n" +
                         "👤 Usuário: %s\n" +
                         "🔑 Senha Temporária: %s\n\n" +
                         "Recomendamos que altere sua senha no primeiro acesso.\n\n" +
@@ -59,7 +59,7 @@ public class EmailService {
                         "--- NOVAS CREDENCIAIS ---\n" +
                         "👤 Usuário: %s\n" +
                         "🔑 Nova Senha: %s\n\n" +
-                        "🔗 Acesse aqui: http://localhost:5173/admin/login\n\n" +
+                        "🔗 Acesse aqui: https://sistema-castracao-app.onrender.com/admin/login\n\n" +
                         "Atenciosamente,\nSistema Castração ONG",
                 clinica.getNome(), clinica.getAdministrador().getEmail(), novaSenhaPlana
         );
@@ -83,7 +83,7 @@ public class EmailService {
                         "Seja muito bem-vindo(a) ao time da Sistema Castração ONG!\n\n" +
                         "Você terá um papel fundamental na organização dos mutirões e suporte aos tutores.\n\n" +
                         "--- SEUS DADOS DE ACESSO ---\n" +
-                        "🔗 Link: http://localhost:5173/admin/login\n" +
+                        "🔗 Link: https://sistema-castracao-app.onrender.com/admin/login\n" +
                         "👤 Usuário: %s\n" +
                         "🔑 Senha Temporária: %s\n\n" +
                         "Atenciosamente,\nSistema Castração ONG",
@@ -131,7 +131,7 @@ public class EmailService {
                         "1. Jejum de 8h (água e comida).\n" +
                         "2. Uso de caixa de transporte ou coleira.\n" +
                         "3. Documento com foto obrigatório.\n\n" +
-                        "Consulte detalhes em: http://portal.suaong.org\n\nNos vemos lá!", nomePet);
+                        "\n\nNos vemos lá!", nomePet);
 
         message.setText(corpoEmail);
         mailSender.send(message);
@@ -169,7 +169,7 @@ public class EmailService {
 
         String corpoEmail = String.format(
                 "Olá, %s!\n\nNão conseguimos validar o pagamento para %s.\n\n" +
-                        "Motivo: %s\n\nPor favor, reenvie o comprovante pelo portal: http://localhost:5173",
+                        "Motivo: %s\n\nPor favor, refaça o cadastro e reenvie o comprovante pelo portal:https://sistema-castracao-app.onrender.com/",
                 nomeTutor, nomePet, motivo);
 
         message.setText(corpoEmail);
