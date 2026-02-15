@@ -80,13 +80,20 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        // Verifique se o seu Frontend está em http://localhost:5173 (Vite) ou 3000 (React antigo)
-        configuration.setAllowedOrigins(Arrays.asList("http://localhost:5173", "http://localhost:3000"));
+
+        // Adicionamos a URL do Render junto com os endereços locais para você poder testar em ambos
+        configuration.setAllowedOrigins(Arrays.asList(
+                "http://localhost:5173",
+                "http://localhost:3000",
+                "https://sistema-castracao-app.onrender.com" // <-- COLOQUE A SUA URL DO RENDER AQUI
+        ));
+
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
         configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "Accept"));
         configuration.setAllowCredentials(true);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        // Isso aplica a permissão para todas as rotas da API
         source.registerCorsConfiguration("/**", configuration);
         return source;
     }
