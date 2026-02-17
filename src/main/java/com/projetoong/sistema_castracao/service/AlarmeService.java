@@ -43,16 +43,19 @@ public class AlarmeService {
             alarmes.add(criarAlarme("OPERACIONAL", "Fila crítica: " + naFila + " pets aguardando", "MEDIA", "N/A"));
         }
 
-        // 3. REGRA: Alerta de PIX alterado (USANDO OPTIONAL CORRETAMENTE)
-        LocalDateTime ontem = LocalDateTime.now().minusDays(1);
-        Optional<ConfiguracaoPix> pixRecente = pixRepository.findTopByDataCriacaoAfterOrderByDataCriacaoDesc(ontem);
+        // 3. REGRA: Alerta de PIX alterado (Soma em 24h)
+        // Pegamos o exato momento de 24 horas atrás
+        LocalDateTime limite24Horas = LocalDateTime.now().minusHours(24);
 
-        if (pixRecente.isPresent()) { // Se existir algo dentro do Optional
+        // Busca se a última alteração de PIX foi DEPOIS desse limite (ou seja, é recente)
+        Optional<ConfiguracaoPix> pixAlteradoNasUltimas24h = pixRepository.findTopByDataCriacaoAfterOrderByDataCriacaoDesc(limite24Horas);
+
+        if (pixAlteradoNasUltimas24h.isPresent()) {
             alarmes.add(criarAlarme(
                     "AUDITORIA",
-                    "⚠️ A conta PIX de destino foi alterada recentemente!",
+                    "⚠️ A conta PIX de destino foi alterada recentemente! Verifique se está correto.",
                     "ALTA",
-                    "Sistema Master"
+                    "Segurança Master"
             ));
         }
 

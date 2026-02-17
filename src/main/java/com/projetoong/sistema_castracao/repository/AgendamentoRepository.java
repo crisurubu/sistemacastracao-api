@@ -35,4 +35,9 @@ public interface AgendamentoRepository extends JpaRepository<Agendamento, Long> 
         ORDER BY totalRealizados DESC
         """, nativeQuery = true)
     List<Object[]> findPerformanceClinicasRaw();
+    // Busca o agendamento pelo ID do cadastro vinculado
+    Optional<Agendamento> findByCadastroId(Long cadastroId);
+
+    // Se quiser buscar todos os agendamentos de um tutor (opcional)
+    List<Agendamento> findByCadastroTutorId(Long tutorId);
 }

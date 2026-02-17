@@ -3,6 +3,7 @@ package com.projetoong.sistema_castracao.service;
 import com.cloudinary.Cloudinary;
 import com.cloudinary.utils.ObjectUtils;
 import com.projetoong.sistema_castracao.dto.CadastroPetRecord;
+import com.projetoong.sistema_castracao.dto.HistoricoCompletoDTO;
 import com.projetoong.sistema_castracao.model.*;
 import com.projetoong.sistema_castracao.repository.*;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -13,6 +14,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 public class CadastroService {
@@ -21,6 +23,7 @@ public class CadastroService {
     @Autowired private PetRepository petRepository;
     @Autowired private CadastroRepository cadastroRepository;
     @Autowired private Cloudinary cloudinary;
+    @Autowired private AgendamentoRepository agendamentoRepository;
 
     // NOVO: Necessário para buscar o valor da taxa e a conta destino ativa
     @Autowired private ConfiguracaoPixService pixService;
@@ -109,8 +112,63 @@ public class CadastroService {
         System.out.println("✅ Cadastro OK! Pet: " + pet.getNomeAnimal() + " | Valor Gravado: R$ " + pagamento.getValorContribuicao());
     }
 
-    public List<CadastroCastracao> buscarHistoricoPorTutor(Long tutorId) {
-        return cadastroRepository.findByTutorId(tutorId);
+    public List<HistoricoCompletoDTO> buscarHistoricoPorTutor(Long tutorId) {
+        List<CadastroCastracao> cadastros = cadastroRepository.findByTutorId(tutorId);
+
+        return cadastros.stream().map(c -> {
+            // Busca o agendamento vinculado
+            Agendamento ag = agendamentoRepository.findByCadastroId(c.getId()).orElse(null);
+            Clinica cli = (ag != null) ? ag.getClinica() : null;
+
+            return new HistoricoCompletoDTO(
+                    // Tutor
+                    c.getTutor().getId(),
+                    c.getTutor().getNome(),
+                    c.getTutor().getCpf(),
+                    c.getTutor().getEmail(),
+                    c.getTutor().getWhatsapp(),
+                    c.getTutor().getLogradouro(),
+                    c.getTutor().getNumero(),
+                    c.getTutor().getBairro(),
+                    c.getTutor().getCidade(),
+                    c.getTutor().getEnderecoCompleto(),
+
+                    // Pet
+                    c.getPet().getId(),
+                    c.getPet().getNomeAnimal(),
+                    c.getPet().getEspecie(),
+                    c.getPet().getSexo(),
+                    c.getPet().getIdadeAprox(),
+                    c.getPet().isVacinado(),
+                    c.getPet().isOperouAntes(),
+                    c.getPet().getMedicamentos(),
+
+                    // Cadastro
+                    c.getId(),
+                    c.getDataSolicitacao(),
+                    c.getStatusProcesso(),
+
+                    // Agendamento
+                    (ag != null) ? ag.getId() : null,
+                    (ag != null) ? ag.getDataHora() : null,
+                    (ag != null) ? ag.getLocal() : "A DEFINIR",
+                    (ag != null) ? ag.getCodigoHash() : "SEM HASH",
+                    (ag != null) && ag.isRealizado(),
+                    (ag != null) ? ag.getDataRegistro() : null,
+                    (ag != null) ? ag.getAgendadorNome() : "SISTEMA",
+
+                    // Clínica
+                    (cli != null) ? cli.getId() : null,
+                    (cli != null) ? cli.getNome() : "AGUARDANDO DEFINIÇÃO",
+                    (cli != null) ? cli.getCnpj() : "---",
+                    (cli != null) ? cli.getCrmvResponsavel() : "---",
+                    (cli != null) ? cli.getTelefone() : "---",
+                    (cli != null) ? cli.getEndereco() : "---",
+                    (cli != null) ? cli.getEmail() : "---",
+                    (cli != null) ? cli.getTotalCastracoes() : 0,
+                    (cli != null) ? cli.getSelo().toString() : "N/A"
+            );
+        }).collect(Collectors.toList());
     }
 
     public List<Pet> buscarPetsPorCpf(String cpf) {
