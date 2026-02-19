@@ -24,18 +24,19 @@ public class AutenticacaoService {
         Administrador admin = repository.findByEmail(dados.email())
                 .orElseThrow(() -> new RuntimeException("E-mail ou senha incorretos."));
 
-        // 2. Verifica se a conta está ativa (Importante para o controle da ONG)
-        if (!admin.isAtivo()) {
-            throw new RuntimeException("Sua conta está inativa. Por favor, contate a administração.");
-        }
-
-        // 3. Validação da senha com BCrypt
-        // Como o ajuste já foi feito, não precisamos mais do 'save' aqui dentro
+        // 2. Validação da senha com BCrypt (MUDOU PARA CÁ!)
+        // Primeiro conferimos se a senha bate. Se errar aqui, cai no erro comum.
         if (!passwordEncoder.matches(dados.senha(), admin.getSenha())) {
             throw new RuntimeException("E-mail ou senha incorretos.");
         }
 
-        // 4. Login bem-sucedido: Gera o Token JWT com as permissões (MASTER, CLINICA ou VOLUNTARIO)
+        // 3. Verifica se a conta está ativa (MUDOU PARA DEPOIS DA SENHA)
+        // Se a senha está certa, mas o booleano 'ativo' é false, aí sim avisamos do bloqueio.
+        if (!admin.isAtivo()) {
+            throw new RuntimeException("Sua conta está inativa. Por favor, contate a administração.");
+        }
+
+        // 4. Login bem-sucedido
         return tokenService.gerarToken(admin);
     }
 
