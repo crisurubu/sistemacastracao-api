@@ -30,18 +30,26 @@ public class SecurityFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
 
-        String path = request.getRequestURI();
+        // --- INÍCIO DA MELHORIA ---
+        // Convertemos para minúsculo para evitar que "API" seja diferente de "api"
+        String path = request.getRequestURI().toLowerCase();
 
-        // Use .contains para garantir que ele pegue a rota independente de prefixos
-        if (path.contains("/api/cadastros/tutor") || path.contains("/api/tutores")) {
-            System.out.println("LIBERANDO ROTA PELO FILTRO: " + path); // Isso vai aparecer no seu terminal do IntelliJ
+        // Lista de rotas que não devem passar pela verificação de Token
+        // Adicione aqui qualquer rota que seja 100% aberta ao público
+        if (path.contains("/api/auth/login") ||
+                path.contains("/api/cadastros/tutor") ||
+                path.contains("/api/public") ||
+                path.contains("/api/sistema/status")) {
+
             filterChain.doFilter(request, response);
             return;
         }
+        // --- FIM DA MELHORIA ---
 
         var token = recuperarToken(request);
 
         if (token != null) {
+            // ... (resto do seu código de validação de token permanece igual)
             var login = tokenService.getSubject(token);
             System.out.println("FILTRO - Email extraído do Token: [" + login + "]"); // LOG AQUI
 
@@ -69,14 +77,17 @@ public class SecurityFilter extends OncePerRequestFilter {
     }
 
     private String recuperarToken(HttpServletRequest request) {
-        // 1. TENTA RECUPERAR DO COOKIE (Novo padrão HttpOnly)
         if (request.getCookies() != null) {
             for (Cookie cookie : request.getCookies()) {
+                // Log para ver se QUALQUER cookie está chegando
+                System.out.println("Cookie recebido: " + cookie.getName());
                 if (cookie.getName().equals("accessToken")) {
                     return cookie.getValue();
                 }
             }
         }
+        // ... resto do método
+
 
         // 2. MANTÉM A BUSCA NO HEADER (Caso você ainda precise testar pelo Insomnia/Postman)
         var authorizationHeader = request.getHeader("Authorization");

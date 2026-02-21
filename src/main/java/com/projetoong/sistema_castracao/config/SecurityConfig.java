@@ -81,23 +81,24 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
 
-        // 1. LISTA DE ORIGENS PERMITIDAS
-        // Mantemos o localhost para você trabalhar no seu PC e a URL do Render para a ONG
+        // 1. ORIGENS
         configuration.setAllowedOrigins(Arrays.asList(
                 "http://localhost:5173",
                 "http://localhost:3000",
-                "https://sistema-castracao-app.onrender.com"
+                "https://sistema-castracao-app.onrender.com" // Verifique se esta é a URL final do FRONTEND
         ));
 
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
 
-        // 2. AJUSTE NOS HEADERS
-        // Agora que usamos cookies, o header "Authorization" não é mais o único importante.
-        // O navegador gerencia os cookies automaticamente.
-        configuration.setAllowedHeaders(Arrays.asList("Content-Type", "Accept", "X-Requested-With", "Origin"));
+        // 2. HEADERS (Ajustado para ser mais flexível com cookies)
+        // Usamos "*" aqui para permitir que o navegador envie qualquer header necessário para validar o cookie
+        configuration.setAllowedHeaders(Arrays.asList("*"));
 
-        // 3. PERMITIR CREDENCIAIS (O mais importante para HttpOnly)
-        // Sem isso aqui ser 'true', o navegador se recusa a salvar o cookie que o Java envia.
+        // 3. EXPOR HEADERS
+        // Importante para que o navegador "enxergue" o Set-Cookie vindo do Java
+        configuration.setExposedHeaders(Arrays.asList("Set-Cookie"));
+
+        // 4. CREDENCIAIS (Essencial para HttpOnly)
         configuration.setAllowCredentials(true);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
