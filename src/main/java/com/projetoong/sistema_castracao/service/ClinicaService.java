@@ -69,22 +69,26 @@ public class ClinicaService {
         return salva;
     }
 
-    // --- 2. ATUALIZAR (Garantindo os Alarmes por Região) ---
+    // --- 2. ATUALIZAR (Garantindo sincronia com Administrador) ---
     public Clinica atualizarExistente(Clinica existente, Clinica dadosNovos) {
         existente.setNome(dadosNovos.getNome());
         existente.setCrmvResponsavel(dadosNovos.getCrmvResponsavel());
         existente.setTelefone(dadosNovos.getTelefone());
-        existente.setEmail(dadosNovos.getEmail());
 
-        // MAPEAR OS NOVOS CAMPOS ESTRUTURADOS (Fim do erro de campo nulo)
+        // Se o e-mail mudou na Clínica, TEM que mudar no Administrador (Login)
+        if (!existente.getEmail().equals(dadosNovos.getEmail())) {
+            existente.setEmail(dadosNovos.getEmail());
+            if (existente.getAdministrador() != null) {
+                existente.getAdministrador().setEmail(dadosNovos.getEmail());
+            }
+        }
+
         existente.setCep(dadosNovos.getCep());
         existente.setLogradouro(dadosNovos.getLogradouro());
         existente.setNumero(dadosNovos.getNumero());
         existente.setBairro(dadosNovos.getBairro());
         existente.setCidade(dadosNovos.getCidade());
         existente.setEstado(dadosNovos.getEstado());
-
-        // Mantemos a dataCadastro original do objeto 'existente' intacta
 
         return clinicaRepository.save(existente);
     }
@@ -117,13 +121,23 @@ public class ClinicaService {
         return clinicaRepository.findAllByOrderByTotalCastracoesDesc();
     }
 
+    // --- 4. GESTÃO DE STATUS (Igual ao Voluntário) ---
     @Transactional
     public void alternarStatus(Long id) {
         Clinica clinica = clinicaRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Clínica não encontrada"));
-        clinica.getAdministrador().setAtivo(!clinica.getAdministrador().isAtivo());
-    }
 
+        boolean novoStatus = !clinica.getAdministrador().isAtivo();
+
+        // Atualiza o login (Administrador)
+        clinica.getAdministrador().setAtivo(novoStatus);
+
+        // Se você adicionou a coluna 'ativo' na Clínica.java, descomente a linha abaixo:
+        // clinica.setAtivo(novoStatus);
+
+        // Salva as alterações (O @Transactional cuida do commit)
+        clinicaRepository.save(clinica);
+    }
     public Map<String, Object> obterDadosDashboard(String email) {
         Clinica clinica = buscarPorEmail(email);
         long totalVidas = agendamentoRepository.countByClinicaAndRealizadoTrue(clinica);

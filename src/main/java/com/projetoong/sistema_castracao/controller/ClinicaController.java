@@ -75,8 +75,15 @@ public class ClinicaController {
 
     @PreAuthorize("hasAnyAuthority('MASTER', 'ROLE_MASTER')")
     @PatchMapping("/{id}/status")
-    public ResponseEntity<Void> alternarStatus(@PathVariable Long id) {
+    public ResponseEntity<Map<String, Object>> alternarStatus(@PathVariable Long id) {
         clinicaService.alternarStatus(id);
-        return ResponseEntity.noContent().build();
+
+        // Opcional: Retornar o novo status para o React atualizar o botão instantaneamente
+        boolean novoStatus = clinicaService.buscarPorId(id).get().getAdministrador().isAtivo();
+        Map<String, Object> response = new HashMap<>();
+        response.put("ativo", novoStatus);
+        response.put("message", "Status alterado com sucesso");
+
+        return ResponseEntity.ok(response);
     }
 }

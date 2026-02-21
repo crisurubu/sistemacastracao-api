@@ -42,6 +42,10 @@ public class Clinica {
     @Column(nullable = false, updatable = false)
     private LocalDateTime dataCadastro;
 
+    @Column(name = "ativo")
+    private boolean ativo = true;
+
+
     @OneToOne(cascade = CascadeType.ALL)
     @JoinColumn(name = "usuario_id", referencedColumnName = "id")
     private Administrador administrador;
@@ -59,6 +63,14 @@ public class Clinica {
 
     public void setDataCadastro(LocalDateTime dataCadastro) {
         this.dataCadastro = dataCadastro;
+    }
+
+    public boolean isAtivo() {
+        return ativo;
+    }
+
+    public void setAtivo(boolean ativo) {
+        this.ativo = ativo;
     }
 
     // (Mantenha todos os outros getters e setters que você já tem abaixo...)
