@@ -12,7 +12,6 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/cadastros") // Coloquei o 'S' para bater com o SecurityConfig e o Front
-@CrossOrigin(origins = "http://localhost:5173")
 public class CadastroController {
 
     @Autowired

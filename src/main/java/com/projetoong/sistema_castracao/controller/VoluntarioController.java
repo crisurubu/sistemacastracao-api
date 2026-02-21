@@ -14,7 +14,6 @@ import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/admin/voluntarios")
-@CrossOrigin(origins = "http://localhost:5173") // Mantendo o padrão do seu Front
 public class VoluntarioController {
 
     @Autowired

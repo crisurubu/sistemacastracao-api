@@ -12,6 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.time.LocalDateTime; // Import necessário para a data
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -24,8 +25,6 @@ public class CadastroService {
     @Autowired private CadastroRepository cadastroRepository;
     @Autowired private Cloudinary cloudinary;
     @Autowired private AgendamentoRepository agendamentoRepository;
-
-    // NOVO: Necessário para buscar o valor da taxa e a conta destino ativa
     @Autowired private ConfiguracaoPixService pixService;
 
     @Transactional
@@ -68,26 +67,27 @@ public class CadastroService {
         pet.setTutor(tutor);
         pet = petRepository.save(pet);
 
-        // 3. LÓGICA DO CADASTRO
+        // 3. LÓGICA DO CADASTRO (AQUI ENTRA A DATA)
         CadastroCastracao cadastro = new CadastroCastracao();
         cadastro.setPet(pet);
         cadastro.setTutor(tutor);
         cadastro.setStatusProcesso("AGUARDANDO_PAGAMENTO");
 
-        // 4. LÓGICA DO PAGAMENTO (FIM DOS NULLS E DO VALOR 20 FIXO)
-        Pagamento pagamento = new Pagamento();
+        // Garante que a data da solicitação seja gravada agora
+        if (cadastro.getDataSolicitacao() == null) {
+            cadastro.setDataSolicitacao(LocalDateTime.now());
+        }
 
-        // Busca a configuração que está marcada como ativa no banco (Lugar certo do alarme)
+        // 4. LÓGICA DO PAGAMENTO
+        Pagamento pagamento = new Pagamento();
         ConfiguracaoPix configAtiva = pixService.buscarChaveAtiva();
 
-        // Define o valor dinamicamente (BigDecimal da config -> Double do pagamento)
         if (configAtiva.getValorTaxa() != null) {
             pagamento.setValorContribuicao(configAtiva.getValorTaxa().doubleValue());
         } else {
-            pagamento.setValorContribuicao(25.0); // Fallback caso a config esteja sem valor
+            pagamento.setValorContribuicao(25.0);
         }
 
-        // VINCULA A CONTA DESTINO: Mata o erro de pix_config_id = null
         pagamento.setContaDestino(configAtiva);
         pagamento.setConfirmado(false);
         pagamento.setCadastro(cadastro);
@@ -112,13 +112,23 @@ public class CadastroService {
         System.out.println("✅ Cadastro OK! Pet: " + pet.getNomeAnimal() + " | Valor Gravado: R$ " + pagamento.getValorContribuicao());
     }
 
+    // ... (mantenha os seus imports e o restante do service igual)
+
     public List<HistoricoCompletoDTO> buscarHistoricoPorTutor(Long tutorId) {
         List<CadastroCastracao> cadastros = cadastroRepository.findByTutorId(tutorId);
 
         return cadastros.stream().map(c -> {
-            // Busca o agendamento vinculado
             Agendamento ag = agendamentoRepository.findByCadastroId(c.getId()).orElse(null);
             Clinica cli = (ag != null) ? ag.getClinica() : null;
+
+            String clinicaEndFormatado = "AGUARDANDO DEFINIÇÃO";
+            if (cli != null) {
+                clinicaEndFormatado = String.format("%s, %s - %s, %s",
+                        cli.getLogradouro() != null ? cli.getLogradouro() : "",
+                        cli.getNumero() != null ? cli.getNumero() : "S/N",
+                        cli.getBairro() != null ? cli.getBairro() : "",
+                        cli.getCidade() != null ? cli.getCidade() : "");
+            }
 
             return new HistoricoCompletoDTO(
                     // Tutor
@@ -157,19 +167,24 @@ public class CadastroService {
                     (ag != null) ? ag.getDataRegistro() : null,
                     (ag != null) ? ag.getAgendadorNome() : "SISTEMA",
 
-                    // Clínica
+                    // Clínica (Aqui os campos devem bater com o novo record)
                     (cli != null) ? cli.getId() : null,
                     (cli != null) ? cli.getNome() : "AGUARDANDO DEFINIÇÃO",
                     (cli != null) ? cli.getCnpj() : "---",
                     (cli != null) ? cli.getCrmvResponsavel() : "---",
                     (cli != null) ? cli.getTelefone() : "---",
-                    (cli != null) ? cli.getEndereco() : "---",
+                    clinicaEndFormatado,
                     (cli != null) ? cli.getEmail() : "---",
                     (cli != null) ? cli.getTotalCastracoes() : 0,
-                    (cli != null) ? cli.getSelo().toString() : "N/A"
+                    (cli != null) ? (cli.getSelo() != null ? cli.getSelo().toString() : "INICIANTE") : "N/A",
+
+                    // --- O AJUSTE ESTÁ AQUI (38º CAMPO) ---
+                    (cli != null) ? cli.getDataCadastro() : null
             );
         }).collect(Collectors.toList());
     }
+
+// ... (restante do código igual)
 
     public List<Pet> buscarPetsPorCpf(String cpf) {
         return petRepository.findByTutorCpf(cpf);

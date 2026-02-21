@@ -14,26 +14,25 @@ import java.util.HashMap;
 
 @RestController
 @RequestMapping("/api/admin/clinicas")
-@CrossOrigin(origins = "http://localhost:5173")
 public class ClinicaController {
 
     @Autowired
     private ClinicaService clinicaService;
 
-    // 1. SALVAR OU ATUALIZAR (O que resolve o problema de barrar o CNPJ)
+    // 1. SALVAR (Igual ao fluxo de voluntários)
     @PreAuthorize("hasAnyAuthority('MASTER', 'ROLE_MASTER')")
     @PostMapping
-    public ResponseEntity<Clinica> salvarOuAtualizar(@RequestBody Clinica clinica) {
+    public ResponseEntity<Clinica> salvar(@RequestBody Clinica clinica) {
+        // Garantimos que a lógica de "se existir CNPJ, atualize, se não, crie" esteja no Service
         Clinica resultado = clinicaService.salvarOuAtualizar(clinica);
-        return new ResponseEntity<>(resultado, HttpStatus.OK);
+        return new ResponseEntity<>(resultado, HttpStatus.CREATED);
     }
 
-    // 2. VERIFICAR E PUXAR DADOS
+    // 2. VERIFICAR CNPJ (Crucial para o modo de edição automática no React)
     @PreAuthorize("hasAnyAuthority('MASTER', 'ROLE_MASTER')")
     @GetMapping("/verificar/{cnpj}")
     public ResponseEntity<Map<String, Object>> verificarCnpj(@PathVariable String cnpj) {
         Map<String, Object> response = new HashMap<>();
-
         return clinicaService.buscarPorCnpj(cnpj)
                 .map(clinica -> {
                     response.put("existe", true);
@@ -46,20 +45,21 @@ public class ClinicaController {
                 });
     }
 
-    // 3. ATUALIZAR (Corrigido para usar o objeto existente do banco primeiro)
+    // 3. ATUALIZAÇÃO VIA ID (Put limpo)
     @PreAuthorize("hasAnyAuthority('MASTER', 'ROLE_MASTER')")
     @PutMapping("/{id}")
     public ResponseEntity<Clinica> atualizar(@PathVariable Long id, @RequestBody Clinica clinica) {
-        // Buscamos a clínica pelo ID para garantir que ela existe antes de atualizar
-        return clinicaService.buscarPorCnpj(clinica.getCnpj())
+        // No fluxo correto, o ID da URL manda no processo
+        return clinicaService.buscarPorId(id)
                 .map(existente -> {
+                    // O Service deve copiar os novos campos (cep, bairro...) para o existente
                     Clinica atualizada = clinicaService.atualizarExistente(existente, clinica);
                     return ResponseEntity.ok(atualizada);
                 })
                 .orElse(ResponseEntity.notFound().build());
     }
 
-    // 4. CONCLUIR CASTRAÇÃO (Histórico de Vida)
+    // 4. MÉTODOS DE APOIO E LISTAGEM
     @PreAuthorize("hasAnyAuthority('MASTER', 'ROLE_MASTER', 'CLINICA', 'ROLE_CLINICA')")
     @PatchMapping("/{id}/concluir-castracao")
     public ResponseEntity<Void> registrarCastracao(@PathVariable Long id) {

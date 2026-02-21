@@ -12,6 +12,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -31,9 +32,10 @@ public class ClinicaService {
     @Autowired
     private EmailService emailService;
 
-    // --- 1. SALVAR OU ATUALIZAR ---
+    // --- 1. SALVAR OU ATUALIZAR (O Coração do Formulário Inteligente) ---
     @Transactional
     public Clinica salvarOuAtualizar(Clinica clinica) {
+        // Busca por CNPJ para decidir se atualiza ou cadastra novo
         return clinicaRepository.findByCnpj(clinica.getCnpj())
                 .map(existente -> atualizarExistente(existente, clinica))
                 .orElseGet(() -> cadastrarNova(clinica));
@@ -43,12 +45,20 @@ public class ClinicaService {
         Administrador adm = clinica.getAdministrador();
         String senhaOriginal = adm.getSenha();
 
+        // Garante que a data de cadastro seja a atual no momento da criação
+        if (clinica.getDataCadastro() == null) {
+            clinica.setDataCadastro(LocalDateTime.now());
+        }
+
         clinica.setEmail(adm.getEmail());
         adm.setSenha(passwordEncoder.encode(senhaOriginal));
         adm.setNivelAcesso(Role.CLINICA);
         adm.setAtivo(true);
 
+        // Salva o administrador e vincula à clínica
         clinica.setAdministrador(administradorRepository.save(adm));
+
+        // Salva a clínica com todos os novos campos de endereço (CEP, Bairro, etc)
         Clinica salva = clinicaRepository.save(clinica);
 
         try {
@@ -59,38 +69,24 @@ public class ClinicaService {
         return salva;
     }
 
-    // --- 2. ATUALIZAR (Lógica revisada e sem logs) ---
-    @Transactional
+    // --- 2. ATUALIZAR (Garantindo os Alarmes por Região) ---
     public Clinica atualizarExistente(Clinica existente, Clinica dadosNovos) {
         existente.setNome(dadosNovos.getNome());
-        existente.setTelefone(dadosNovos.getTelefone());
-        existente.setEndereco(dadosNovos.getEndereco());
         existente.setCrmvResponsavel(dadosNovos.getCrmvResponsavel());
+        existente.setTelefone(dadosNovos.getTelefone());
+        existente.setEmail(dadosNovos.getEmail());
 
-        if (dadosNovos.getAdministrador() != null) {
-            Administrador adm = existente.getAdministrador();
-            adm.setEmail(dadosNovos.getAdministrador().getEmail());
-            existente.setEmail(adm.getEmail());
+        // MAPEAR OS NOVOS CAMPOS ESTRUTURADOS (Fim do erro de campo nulo)
+        existente.setCep(dadosNovos.getCep());
+        existente.setLogradouro(dadosNovos.getLogradouro());
+        existente.setNumero(dadosNovos.getNumero());
+        existente.setBairro(dadosNovos.getBairro());
+        existente.setCidade(dadosNovos.getCidade());
+        existente.setEstado(dadosNovos.getEstado());
 
-            String novaSenha = dadosNovos.getAdministrador().getSenha();
-            if (novaSenha != null && !novaSenha.isBlank()) {
-                adm.setSenha(passwordEncoder.encode(novaSenha));
-                try {
-                    emailService.enviarEmailSenhaAlteradaClinica(existente, novaSenha);
-                } catch (Exception e) {
-                    System.err.println("Erro e-mail alteração senha: " + e.getMessage());
-                }
-            }
-            administradorRepository.save(adm);
-        }
+        // Mantemos a dataCadastro original do objeto 'existente' intacta
 
-        Clinica salva = clinicaRepository.save(existente);
-
-        // Garante a escrita imediata para evitar problemas de cache no login
-        clinicaRepository.flush();
-        administradorRepository.flush();
-
-        return salva;
+        return clinicaRepository.save(existente);
     }
 
     // --- 3. GESTÃO DE CASTRAÇÕES E SELOS ---
@@ -106,7 +102,13 @@ public class ClinicaService {
         clinicaRepository.save(clinica);
     }
 
-    // --- 4. DASHBOARD E APOIO ---
+    // --- 4. DASHBOARD E APOIO (Ajustado para o Controller) ---
+
+    // Adicionado para suportar o @PutMapping("/{id}") do Controller
+    public Optional<Clinica> buscarPorId(Long id) {
+        return clinicaRepository.findById(id);
+    }
+
     public Optional<Clinica> buscarPorCnpj(String cnpj) {
         return clinicaRepository.findByCnpj(cnpj);
     }

@@ -9,7 +9,6 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/publico") // Alinhado com o React e com o SecurityConfig
-@CrossOrigin(origins = "http://localhost:5173")
 public class VerificacaoController {
 
     @Autowired

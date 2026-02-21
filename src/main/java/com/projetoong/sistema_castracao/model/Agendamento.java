@@ -1,5 +1,6 @@
 package com.projetoong.sistema_castracao.model;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
@@ -19,6 +20,7 @@ public class Agendamento {
     @JoinColumn(name = "clinica_id")
     private Clinica clinica;
 
+    @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss", timezone = "America/Sao_Paulo")
     private LocalDateTime dataHora;
     private String local;
     private String codigoHash;

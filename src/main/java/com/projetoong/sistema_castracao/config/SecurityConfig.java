@@ -81,19 +81,26 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
 
-        // Adicionamos a URL do Render junto com os endereços locais para você poder testar em ambos
+        // 1. LISTA DE ORIGENS PERMITIDAS
+        // Mantemos o localhost para você trabalhar no seu PC e a URL do Render para a ONG
         configuration.setAllowedOrigins(Arrays.asList(
                 "http://localhost:5173",
                 "http://localhost:3000",
-                "https://sistema-castracao-app.onrender.com" // <-- COLOQUE A SUA URL DO RENDER AQUI
+                "https://sistema-castracao-app.onrender.com"
         ));
 
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
-        configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "Accept"));
+
+        // 2. AJUSTE NOS HEADERS
+        // Agora que usamos cookies, o header "Authorization" não é mais o único importante.
+        // O navegador gerencia os cookies automaticamente.
+        configuration.setAllowedHeaders(Arrays.asList("Content-Type", "Accept", "X-Requested-With", "Origin"));
+
+        // 3. PERMITIR CREDENCIAIS (O mais importante para HttpOnly)
+        // Sem isso aqui ser 'true', o navegador se recusa a salvar o cookie que o Java envia.
         configuration.setAllowCredentials(true);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        // Isso aplica a permissão para todas as rotas da API
         source.registerCorsConfiguration("/**", configuration);
         return source;
     }

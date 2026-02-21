@@ -48,5 +48,6 @@ public record HistoricoCompletoDTO(
         String clinicaEndereco,
         String clinicaEmail,
         int clinicaTotalCastracoes,
-        String clinicaSelo
+        String clinicaSelo,
+        LocalDateTime clinicaDataCadastro // <-- NOVO CAMPO ADICIONADO AQUI
 ) {}
