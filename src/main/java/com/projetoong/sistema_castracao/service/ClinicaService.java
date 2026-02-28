@@ -70,25 +70,45 @@ public class ClinicaService {
     }
 
     // --- 2. ATUALIZAR (Garantindo sincronia com Administrador) ---
+    // --- 2. ATUALIZAR (Garantindo sincronia com Administrador) ---
+    @Transactional
     public Clinica atualizarExistente(Clinica existente, Clinica dadosNovos) {
+        // 1. Atualiza dados básicos da Clínica
         existente.setNome(dadosNovos.getNome());
         existente.setCrmvResponsavel(dadosNovos.getCrmvResponsavel());
         existente.setTelefone(dadosNovos.getTelefone());
 
-        // Se o e-mail mudou na Clínica, TEM que mudar no Administrador (Login)
-        if (!existente.getEmail().equals(dadosNovos.getEmail())) {
-            existente.setEmail(dadosNovos.getEmail());
-            if (existente.getAdministrador() != null) {
-                existente.getAdministrador().setEmail(dadosNovos.getEmail());
-            }
-        }
-
+        // 2. Atualiza Endereço
         existente.setCep(dadosNovos.getCep());
         existente.setLogradouro(dadosNovos.getLogradouro());
         existente.setNumero(dadosNovos.getNumero());
         existente.setBairro(dadosNovos.getBairro());
         existente.setCidade(dadosNovos.getCidade());
         existente.setEstado(dadosNovos.getEstado());
+
+        // 3. Sincroniza o Administrador (Login e Senha)
+        if (dadosNovos.getAdministrador() != null) {
+            Administrador admExistente = existente.getAdministrador();
+            String novoEmail = dadosNovos.getAdministrador().getEmail().toLowerCase().trim();
+            String novaSenha = dadosNovos.getAdministrador().getSenha();
+
+            // Atualiza o E-mail em ambos os lugares (Tabela Clinica e Tabela Administrador)
+            existente.setEmail(novoEmail);
+            if (admExistente != null) {
+                admExistente.setEmail(novoEmail);
+
+                // CRUCIAL: Se veio uma senha nova, faz o Hash e salva
+                if (novaSenha != null && !novaSenha.trim().isEmpty()) {
+                    admExistente.setSenha(passwordEncoder.encode(novaSenha));
+                }
+
+                // Garante que o nome no admin também mude se o nome da clínica mudar
+                admExistente.setNome(dadosNovos.getNome());
+
+                // Salva o admin explicitamente para garantir
+                administradorRepository.save(admExistente);
+            }
+        }
 
         return clinicaRepository.save(existente);
     }
