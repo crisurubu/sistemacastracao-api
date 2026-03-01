@@ -44,4 +44,7 @@ public class TutorService {
         // Agora o repository vai buscar "309.682.048-13" e VAI achar!
         return tutorRepository.findByCpf(cpfComMascara);
     }
+    public Optional<Tutor> buscarPorEmail(String email) {
+        return tutorRepository.findByEmail(email);
+    }
 }

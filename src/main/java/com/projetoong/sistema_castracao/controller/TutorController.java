@@ -34,6 +34,25 @@ public class TutorController {
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
+    // ... outros imports
+
+    @GetMapping("/verificar-email")
+    public ResponseEntity<?> verificarEmail(@RequestParam String email) {
+        return tutorService.buscarPorEmail(email)
+                .map(tutor -> {
+                    // Se achou, devolve que existe e quem é o dono (CPF)
+                    java.util.Map<String, Object> response = new java.util.HashMap<>();
+                    response.put("exists", true);
+                    response.put("cpfOwner", tutor.getCpf());
+                    return ResponseEntity.ok(response);
+                })
+                .orElseGet(() -> {
+                    // Se não achou, devolve que não existe
+                    java.util.Map<String, Object> response = new java.util.HashMap<>();
+                    response.put("exists", false);
+                    return ResponseEntity.ok(response);
+                });
+    }
 
 
 

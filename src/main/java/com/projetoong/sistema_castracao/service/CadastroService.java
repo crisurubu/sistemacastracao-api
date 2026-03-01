@@ -30,7 +30,15 @@ public class CadastroService {
     @Transactional
     public void cadastrar(CadastroPetRecord dados, MultipartFile arquivo) {
 
-        // 1. LÓGICA DO TUTOR (Busca por CPF ou cria novo)
+        // --- NOVA TRAVA DE SEGURANÇA: VALIDAÇÃO DE E-MAIL ---
+        // Verifica se o e-mail já existe para OUTRO CPF antes de qualquer operação
+        tutorRepository.findByEmail(dados.email()).ifPresent(tutorComEmail -> {
+            if (!tutorComEmail.getCpf().equals(dados.cpf())) {
+                throw new RuntimeException("Este e-mail já está cadastrado para outro usuário.");
+            }
+        });
+
+        // 1. LÓGICA DO TUTOR (Busca por CPF ou cria novo) - MANTIDO INTEGRALMENTE
         Tutor tutor = tutorRepository.findByCpf(dados.cpf())
                 .map(tutorExistente -> {
                     tutorExistente.setLogradouro(dados.logradouro());
@@ -39,6 +47,8 @@ public class CadastroService {
                     tutorExistente.setCidade(dados.cidade() != null ? dados.cidade() : "Tatuí");
                     tutorExistente.setWhatsapp(dados.whatsapp());
                     tutorExistente.setEndereco(tutorExistente.getEnderecoCompleto());
+                    // Atualiza o e-mail também caso o dono do CPF tenha mudado de e-mail
+                    tutorExistente.setEmail(dados.email());
                     return tutorRepository.save(tutorExistente);
                 })
                 .orElseGet(() -> {
@@ -55,7 +65,7 @@ public class CadastroService {
                     return tutorRepository.save(novo);
                 });
 
-        // 2. LÓGICA DO PET
+        // 2. LÓGICA DO PET - MANTIDO INTEGRALMENTE
         Pet pet = new Pet();
         pet.setNomeAnimal(dados.nomePet());
         pet.setEspecie(dados.especie());
@@ -67,7 +77,7 @@ public class CadastroService {
         pet.setTutor(tutor);
         pet = petRepository.save(pet);
 
-        // 3. LÓGICA DO CADASTRO (AQUI ENTRA A DATA)
+        // 3. LÓGICA DO CADASTRO (AQUI ENTRA A DATA) - MANTIDO INTEGRALMENTE
         CadastroCastracao cadastro = new CadastroCastracao();
         cadastro.setPet(pet);
         cadastro.setTutor(tutor);
@@ -78,7 +88,7 @@ public class CadastroService {
             cadastro.setDataSolicitacao(LocalDateTime.now());
         }
 
-        // 4. LÓGICA DO PAGAMENTO
+        // 4. LÓGICA DO PAGAMENTO - MANTIDO INTEGRALMENTE
         Pagamento pagamento = new Pagamento();
         ConfiguracaoPix configAtiva = pixService.buscarChaveAtiva();
 
@@ -92,7 +102,7 @@ public class CadastroService {
         pagamento.setConfirmado(false);
         pagamento.setCadastro(cadastro);
 
-        // 5. UPLOAD PARA CLOUDINARY
+        // 5. UPLOAD PARA CLOUDINARY - MANTIDO INTEGRALMENTE
         if (arquivo != null && !arquivo.isEmpty()) {
             try {
                 Map uploadResult = cloudinary.uploader().upload(arquivo.getBytes(),
@@ -105,14 +115,12 @@ public class CadastroService {
             pagamento.setComprovanteUrl("sem-comprovante.jpg");
         }
 
-        // 6. SALVAMENTO FINAL EM CASCATA
+        // 6. SALVAMENTO FINAL EM CASCATA - MANTIDO INTEGRALMENTE
         cadastro.setPagamento(pagamento);
         cadastroRepository.save(cadastro);
 
         System.out.println("✅ Cadastro OK! Pet: " + pet.getNomeAnimal() + " | Valor Gravado: R$ " + pagamento.getValorContribuicao());
     }
-
-    // ... (mantenha os seus imports e o restante do service igual)
 
     public List<HistoricoCompletoDTO> buscarHistoricoPorTutor(Long tutorId) {
         List<CadastroCastracao> cadastros = cadastroRepository.findByTutorId(tutorId);
